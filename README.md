@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="assets/logo.jpg" alt="PicoClaw" width="512">
+  <img src="assets/new_logo.png" alt="PicoClaw" width="512">
 
-  <h1>PicOraclaw: Ultra-Efficient AI Assistant in Go + Oracle AI Database</h1>
+  <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + Oracle AI Database based on PicoClaw</h1>
 
   <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search</h3>
 
@@ -19,11 +19,11 @@
 
 ---
 
-PicOraclaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
+PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
 
 ## Quickstart (5 minutes)
 
-Everything you need: **Go 1.24+**, **Ollama**, **Docker** (for Oracle).
+Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for Oracle AI Database).
 
 ### Step 1: Build
 
