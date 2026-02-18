@@ -73,7 +73,7 @@ func (p *HTTPProvider) Chat(ctx context.Context, messages []Message, tools []Too
 
 	if maxTokens, ok := options["max_tokens"].(int); ok {
 		lowerModel := strings.ToLower(model)
-		if strings.Contains(lowerModel, "glm") || strings.Contains(lowerModel, "o1") {
+		if strings.Contains(lowerModel, "o1") {
 			requestBody["max_completion_tokens"] = maxTokens
 		} else {
 			requestBody["max_tokens"] = maxTokens
@@ -272,14 +272,6 @@ func CreateProvider(cfg *config.Config) (LLMProvider, error) {
 					apiBase = "https://openrouter.ai/api/v1"
 				}
 			}
-		case "zhipu", "glm":
-			if cfg.Providers.Zhipu.APIKey != "" {
-				apiKey = cfg.Providers.Zhipu.APIKey
-				apiBase = cfg.Providers.Zhipu.APIBase
-				if apiBase == "" {
-					apiBase = "https://open.bigmodel.cn/api/paas/v4"
-				}
-			}
 		case "gemini", "google":
 			if cfg.Providers.Gemini.APIKey != "" {
 				apiKey = cfg.Providers.Gemini.APIKey
@@ -301,14 +293,6 @@ func CreateProvider(cfg *config.Config) (LLMProvider, error) {
 			if cfg.Providers.VLLM.APIBase != "" {
 				apiKey = cfg.Providers.VLLM.APIKey
 				apiBase = cfg.Providers.VLLM.APIBase
-			}
-		case "shengsuanyun":
-			if cfg.Providers.ShengSuanYun.APIKey != "" {
-				apiKey = cfg.Providers.ShengSuanYun.APIKey
-				apiBase = cfg.Providers.ShengSuanYun.APIBase
-				if apiBase == "" {
-					apiBase = "https://router.shengsuanyun.com/api/v1"
-				}
 			}
 		case "claude-cli", "claudecode", "claude-code":
 			workspace := cfg.WorkspacePath()
@@ -395,14 +379,7 @@ func CreateProvider(cfg *config.Config) (LLMProvider, error) {
 				apiBase = "https://generativelanguage.googleapis.com/v1beta"
 			}
 
-		case (strings.Contains(lowerModel, "glm") || strings.Contains(lowerModel, "zhipu") || strings.Contains(lowerModel, "zai")) && cfg.Providers.Zhipu.APIKey != "":
-			apiKey = cfg.Providers.Zhipu.APIKey
-			apiBase = cfg.Providers.Zhipu.APIBase
-			proxy = cfg.Providers.Zhipu.Proxy
-			if apiBase == "" {
-				apiBase = "https://open.bigmodel.cn/api/paas/v4"
-			}
-
+		
 		case (strings.Contains(lowerModel, "groq") || strings.HasPrefix(model, "groq/")) && cfg.Providers.Groq.APIKey != "":
 			apiKey = cfg.Providers.Groq.APIKey
 			apiBase = cfg.Providers.Groq.APIBase

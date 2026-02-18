@@ -182,9 +182,9 @@ type OracleDBConfig struct {
 	ONNXModel         string `json:"onnx_model" env:"PICO_ORACLE_ONNX_MODEL"`
 	AgentID           string `json:"agent_id" env:"PICO_ORACLE_AGENT_ID"`
 	EmbeddingProvider string `json:"embedding_provider" env:"PICO_ORACLE_EMBEDDING_PROVIDER"` // "onnx" (in-database) or "api" (external REST)
-	EmbeddingAPIBase  string `json:"embedding_api_base" env:"PICO_ORACLE_EMBEDDING_API_BASE"` // e.g. "https://open.bigmodel.cn/api/paas/v4"
+	EmbeddingAPIBase  string `json:"embedding_api_base" env:"PICO_ORACLE_EMBEDDING_API_BASE"`
 	EmbeddingAPIKey   string `json:"embedding_api_key" env:"PICO_ORACLE_EMBEDDING_API_KEY"`
-	EmbeddingModel    string `json:"embedding_model" env:"PICO_ORACLE_EMBEDDING_MODEL"` // e.g. "embedding-3" for Zhipu
+	EmbeddingModel    string `json:"embedding_model" env:"PICO_ORACLE_EMBEDDING_MODEL"`
 }
 
 func (o *OracleDBConfig) IsADB() bool {
@@ -204,13 +204,11 @@ type ProvidersConfig struct {
 	OpenAI        ProviderConfig `json:"openai"`
 	OpenRouter    ProviderConfig `json:"openrouter"`
 	Groq          ProviderConfig `json:"groq"`
-	Zhipu         ProviderConfig `json:"zhipu"`
 	VLLM          ProviderConfig `json:"vllm"`
 	Gemini        ProviderConfig `json:"gemini"`
 	Nvidia        ProviderConfig `json:"nvidia"`
 	Ollama        ProviderConfig `json:"ollama"`
 	Moonshot      ProviderConfig `json:"moonshot"`
-	ShengSuanYun  ProviderConfig `json:"shengsuanyun"`
 	DeepSeek      ProviderConfig `json:"deepseek"`
 	GitHubCopilot ProviderConfig `json:"github_copilot"`
 }
@@ -266,8 +264,8 @@ func DefaultConfig() *Config {
 			Defaults: AgentDefaults{
 				Workspace:           "~/.picooraclaw/workspace",
 				RestrictToWorkspace: true,
-				Provider:            "",
-				Model:               "glm-5",
+				Provider:            "ollama",
+				Model:               "qwen3:latest",
 				MaxTokens:           8192,
 				Temperature:         0.7,
 				MaxToolIterations:   20,
@@ -340,16 +338,14 @@ func DefaultConfig() *Config {
 			},
 		},
 		Providers: ProvidersConfig{
-			Anthropic:    ProviderConfig{},
-			OpenAI:       ProviderConfig{},
-			OpenRouter:   ProviderConfig{},
-			Groq:         ProviderConfig{},
-			Zhipu:        ProviderConfig{},
-			VLLM:         ProviderConfig{},
-			Gemini:       ProviderConfig{},
-			Nvidia:       ProviderConfig{},
-			Moonshot:     ProviderConfig{},
-			ShengSuanYun: ProviderConfig{},
+			Anthropic:  ProviderConfig{},
+			OpenAI:     ProviderConfig{},
+			OpenRouter: ProviderConfig{},
+			Groq:       ProviderConfig{},
+			VLLM:       ProviderConfig{},
+			Gemini:     ProviderConfig{},
+			Nvidia:     ProviderConfig{},
+			Moonshot:   ProviderConfig{},
 		},
 		Gateway: GatewayConfig{
 			Host: "0.0.0.0",
@@ -466,17 +462,11 @@ func (c *Config) GetAPIKey() string {
 	if c.Providers.Gemini.APIKey != "" {
 		return c.Providers.Gemini.APIKey
 	}
-	if c.Providers.Zhipu.APIKey != "" {
-		return c.Providers.Zhipu.APIKey
-	}
 	if c.Providers.Groq.APIKey != "" {
 		return c.Providers.Groq.APIKey
 	}
 	if c.Providers.VLLM.APIKey != "" {
 		return c.Providers.VLLM.APIKey
-	}
-	if c.Providers.ShengSuanYun.APIKey != "" {
-		return c.Providers.ShengSuanYun.APIKey
 	}
 	return ""
 }
@@ -489,9 +479,6 @@ func (c *Config) GetAPIBase() string {
 			return c.Providers.OpenRouter.APIBase
 		}
 		return "https://openrouter.ai/api/v1"
-	}
-	if c.Providers.Zhipu.APIKey != "" {
-		return c.Providers.Zhipu.APIBase
 	}
 	if c.Providers.VLLM.APIKey != "" && c.Providers.VLLM.APIBase != "" {
 		return c.Providers.VLLM.APIBase

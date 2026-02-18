@@ -3,7 +3,8 @@
     "defaults": {
       "workspace": "~/.picoclaw/workspace",
       "restrict_to_workspace": true,
-      "model": "glm-5",
+      "provider": "ollama",
+      "model": "qwen3:latest",
       "max_tokens": 8192,
       "temperature": 0.7,
       "max_tool_iterations": 20
@@ -85,10 +86,6 @@
     },
     "groq": {
       "api_key": "gsk_xxx",
-      "api_base": ""
-    },
-    "zhipu": {
-      "api_key": "YOUR_ZHIPU_API_KEY",
       "api_base": ""
     },
     "gemini": {

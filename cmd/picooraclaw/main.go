@@ -762,8 +762,8 @@ func statusCmd() {
 		hasAnthropic := cfg.Providers.Anthropic.APIKey != ""
 		hasOpenAI := cfg.Providers.OpenAI.APIKey != ""
 		hasGemini := cfg.Providers.Gemini.APIKey != ""
-		hasZhipu := cfg.Providers.Zhipu.APIKey != ""
 		hasGroq := cfg.Providers.Groq.APIKey != ""
+		hasOllama := cfg.Providers.Ollama.APIBase != "" || true // Ollama is always available locally
 		hasVLLM := cfg.Providers.VLLM.APIBase != ""
 
 		status := func(enabled bool) string {
@@ -772,11 +772,11 @@ func statusCmd() {
 			}
 			return "not set"
 		}
+		fmt.Println("Ollama (default):", status(hasOllama))
 		fmt.Println("OpenRouter API:", status(hasOpenRouter))
 		fmt.Println("Anthropic API:", status(hasAnthropic))
 		fmt.Println("OpenAI API:", status(hasOpenAI))
 		fmt.Println("Gemini API:", status(hasGemini))
-		fmt.Println("Zhipu API:", status(hasZhipu))
 		fmt.Println("Groq API:", status(hasGroq))
 		if hasVLLM {
 			fmt.Printf("vLLM/Local: ✓ %s\n", cfg.Providers.VLLM.APIBase)

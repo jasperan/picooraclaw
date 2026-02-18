@@ -153,7 +153,6 @@ func resolveCodexModel(model string) (string, string) {
 	}
 
 	unsupportedPrefixes := []string{
-		"glm",
 		"claude",
 		"anthropic",
 		"gemini",
@@ -167,7 +166,6 @@ func resolveCodexModel(model string) (string, string) {
 		"mistral",
 		"grok",
 		"xai",
-		"zhipu",
 	}
 	for _, prefix := range unsupportedPrefixes {
 		if strings.HasPrefix(m, prefix) {

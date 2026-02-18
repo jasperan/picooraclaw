@@ -11,7 +11,8 @@ Ultra-lightweight personal AI assistant written in Go, inspired by nanobot.
 
 ## Purpose
 - Provide intelligent AI assistance with minimal resource usage
-- Support multiple LLM providers (OpenAI, Anthropic, Zhipu, etc.)
+- Default to Ollama (qwen3:latest) for local, private inference
+- Support multiple LLM providers (OpenAI, Anthropic, Groq, etc.) when configured
 - Enable easy customization through skills system
 - Run on minimal hardware ($10 boards, <10MB RAM)
 
