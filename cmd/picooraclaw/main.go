@@ -1626,8 +1626,9 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 	// Create agent loop with Oracle stores
 	agentLoop := agent.NewAgentLoopWithStores(cfg, msgBus, provider, sessionStore, stateStore, memoryStore)
 
-	// Register remember/recall tools
+	// Register remember/recall/daily-note tools
 	agentLoop.RegisterTool(tools.NewRememberTool(memoryStore))
+	agentLoop.RegisterTool(tools.NewWriteDailyNoteTool(memoryStore))
 
 	// Create a recall adapter that bridges oracle.MemoryRecallResult to tools.RecallResult
 	agentLoop.RegisterTool(tools.NewRecallTool(&recallAdapter{store: memoryStore}))

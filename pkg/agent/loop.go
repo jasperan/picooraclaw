@@ -134,6 +134,9 @@ func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers
 	contextBuilder := NewContextBuilder(workspace)
 	contextBuilder.SetToolsRegistry(toolsRegistry)
 
+	// Register write_daily_note with the file-based memory store
+	toolsRegistry.Register(tools.NewWriteDailyNoteTool(contextBuilder.GetMemoryStore()))
+
 	return &AgentLoop{
 		bus:            msgBus,
 		provider:       provider,

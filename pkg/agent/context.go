@@ -64,6 +64,11 @@ func (cb *ContextBuilder) SetPromptStore(store PromptStoreInterface) {
 	cb.promptStore = store
 }
 
+// GetMemoryStore returns the active memory store (file-based or Oracle-backed).
+func (cb *ContextBuilder) GetMemoryStore() MemoryStoreInterface {
+	return cb.memory
+}
+
 func (cb *ContextBuilder) getIdentity() string {
 	now := time.Now().Format("2006-01-02 15:04 (Monday)")
 	workspacePath, _ := filepath.Abs(filepath.Join(cb.workspace))
@@ -85,7 +90,7 @@ You are picooraclaw, a helpful AI assistant with Oracle AI Database-powered memo
 ## Workspace
 Your workspace is at: %s
 - Memory: %s/memory/MEMORY.md
-- Daily Notes: %s/memory/YYYYMM/YYYYMMDD.md
+- Daily Notes: use the **write_daily_note** tool to append notes to today's journal
 - Skills: %s/skills/{skill-name}/SKILL.md
 
 %s
@@ -97,7 +102,7 @@ Your workspace is at: %s
 2. **Be helpful and accurate** - When using tools, briefly explain what you're doing.
 
 3. **Memory** - When remembering something, write to %s/memory/MEMORY.md`,
-		now, runtime, workspacePath, workspacePath, workspacePath, workspacePath, toolsSection, workspacePath)
+		now, runtime, workspacePath, workspacePath, workspacePath, toolsSection, workspacePath)
 }
 
 func (cb *ContextBuilder) buildToolsSection() string {
