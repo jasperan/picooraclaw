@@ -491,7 +491,3 @@ docker compose run --rm picooraclaw-agent -m "你好！"
 - 技能系统（工作区、全局、GitHub 托管）
 - 工作区限制安全沙箱
 - Oracle 不可用时优雅回退到文件存储
-
-## 贡献
-
-欢迎 PR！Discord: <https://discord.gg/V4sAZ9XWpN>

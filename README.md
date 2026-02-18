@@ -1,9 +1,9 @@
 <div align="center">
   <img src="assets/new_logo.png" alt="PicoClaw" width="512">
 
-  <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + Oracle AI Database based on PicoClaw</h1>
+  <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + ollama + Oracle AI Database based on PicoClaw</h1>
 
-  <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search</h3>
+  <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search · ollama-based </h3>
 
   <p>
     <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
@@ -19,7 +19,7 @@
 
 ---
 
-PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
+PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
 
 <table align="center">
   <tr align="center">
@@ -702,7 +702,3 @@ docker compose run --rm picoclaw-agent -m "What is 2+2?"
 - Skills system (workspace, global, GitHub-hosted)
 - Security sandbox with workspace restriction
 - Graceful fallback to file-based storage when Oracle is unavailable
-
-## Contributing
-
-PRs welcome! Discord: <https://discord.gg/V4sAZ9XWpN>

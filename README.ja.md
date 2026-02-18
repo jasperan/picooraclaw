@@ -465,7 +465,3 @@ docker compose run --rm picooraclaw-agent -m "こんにちは！"
 - スキルシステム（ワークスペース、グローバル、GitHub ホスト）
 - ワークスペース制限によるセキュリティサンドボックス
 - Oracle 不使用時はファイルベースストレージへのグレースフルフォールバック
-
-## コントリビュート
-
-PR 歓迎！Discord: <https://discord.gg/V4sAZ9XWpN>
