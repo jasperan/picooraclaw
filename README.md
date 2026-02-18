@@ -21,6 +21,54 @@
 
 PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
 
+<table align="center">
+  <tr align="center">
+    <td align="center" valign="top">
+      <p align="center">
+        <img src="assets/picoclaw_mem.gif" width="360" height="240">
+        <br><sub>Under 10MB RAM — runs on $10 hardware</sub>
+      </p>
+    </td>
+    <td align="center" valign="top">
+      <p align="center">
+        <img src="assets/compare.jpg" width="400" height="240">
+      </p>
+    </td>
+  </tr>
+</table>
+
+## 🦾 Demonstration
+
+### 🛠️ Standard AI Workflows
+
+<table align="center">
+  <tr align="center">
+    <th><p align="center">🧩 Full-Stack Engineering</p></th>
+    <th><p align="center">🧠 Oracle AI Memory</p></th>
+    <th><p align="center">🔎 Web Search & Learning</p></th>
+  </tr>
+  <tr>
+    <td align="center"><p align="center"><img src="assets/picoclaw_code.gif" width="240" height="180"></p></td>
+    <td align="center"><p align="center"><img src="assets/picoclaw_memory.gif" width="240" height="180"></p></td>
+    <td align="center"><p align="center"><img src="assets/picoclaw_search.gif" width="240" height="180"></p></td>
+  </tr>
+  <tr>
+    <td align="center">Develop · Deploy · Scale</td>
+    <td align="center">Remember · Recall · Persist</td>
+    <td align="center">Discover · Insights · Trends</td>
+  </tr>
+</table>
+
+### ⏰ Scheduled Tasks & Reminders
+
+<p align="center">
+  <img src="assets/picoclaw_scedule.gif" width="600">
+</p>
+
+Set reminders, run recurring tasks, automate workflows — scheduled jobs are stored persistently in Oracle AI Database with full ACID guarantees.
+
+---
+
 ## Quickstart (5 minutes)
 
 Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for Oracle AI Database).
@@ -324,6 +372,10 @@ picooraclaw oracle-inspect config                         # Stored config entrie
 ---
 
 ## How Oracle Storage Works
+
+<p align="center">
+  <img src="assets/arch.jpg" alt="PicoOraClaw Architecture" width="680">
+</p>
 
 ```
                            ┌──────────────────────────────────────────┐

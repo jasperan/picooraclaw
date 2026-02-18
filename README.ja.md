@@ -1,73 +1,47 @@
 <div align="center">
-<img src="assets/logo.jpg" alt="PicoClaw" width="512">
+  <img src="assets/new_logo.png" alt="PicoOraClaw" width="512">
 
-<h1>PicoClaw: Go で書かれた超効率 AI アシスタント</h1>
+  <h1>PicoOraClaw: Go + Oracle AI Database による超効率 AI アシスタント</h1>
 
-<h3>$10 ハードウェア · 10MB RAM · 1秒起動 · 皮皮虾，我们走！</h3>
-<h3></h3>
+  <h3>$10 ハードウェア · 10MB RAM · 1秒起動 · Oracle AI ベクトル検索</h3>
 
-<p>
-<img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
-<img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue" alt="Hardware">
-<img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-</p>
+  <p>
+    <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
+    <img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue" alt="Hardware">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  </p>
 
-**日本語** | [English](README.md)
-
+ [中文](README.zh.md) | **日本語** | [English](README.md)
 </div>
-
 
 ---
 
-🦐 PicoClaw は [nanobot](https://github.com/HKUDS/nanobot) にインスパイアされた超軽量パーソナル AI アシスタントです。Go でゼロからリファクタリングされ、AI エージェント自身がアーキテクチャの移行とコード最適化を推進するセルフブートストラッピングプロセスで構築されました。
-
-⚡️ $10 のハードウェアで 10MB 未満の RAM で動作：OpenClaw より 99% 少ないメモリ、Mac mini より 98% 安い！
+PicoOraClaw は [PicoClaw](https://github.com/sipeed/picoclaw) のフォークで、**Oracle AI Database** を永続ストレージとセマンティックベクトル検索のバックエンドとして追加しています。エージェントはインデータベース ONNX 埋め込みを使って意味的に記憶・想起します — 外部の埋め込み API は不要です。
 
 <table align="center">
   <tr align="center">
     <td align="center" valign="top">
       <p align="center">
         <img src="assets/picoclaw_mem.gif" width="360" height="240">
+        <br><sub>10MB 未満の RAM — $10 ハードウェアでも動作</sub>
       </p>
     </td>
     <td align="center" valign="top">
       <p align="center">
-        <img src="assets/licheervnano.png" width="400" height="240">
+        <img src="assets/compare.jpg" width="400" height="240">
       </p>
     </td>
   </tr>
 </table>
 
-## 📢 ニュース
-2026-02-09 🎉 PicoClaw リリース！$10 ハードウェアで 10MB 未満の RAM で動く AI エージェントを 1 日で構築。🦐 皮皮虾，我们走！
-
-## ✨ 特徴
-
-🪶 **超軽量**: メモリフットプリント 10MB 未満 — Clawdbot のコア機能より 99% 小さい。
-
-💰 **最小コスト**: $10 ハードウェアで動作 — Mac mini より 98% 安い。
-
-⚡️ **超高速**: 起動時間 400 倍高速、0.6GHz シングルコアでも 1 秒で起動。
-
-🌍 **真のポータビリティ**: RISC-V、ARM、x86 対応の単一バイナリ。ワンクリックで Go！
-
-🤖 **AI ブートストラップ**: 自律的な Go ネイティブ実装 — コアの 95% が AI 生成、人間によるレビュー付き。
-
-|  | OpenClaw  | NanoBot | **PicoClaw** |
-| --- | --- | --- |--- |
-| **言語** | TypeScript | Python | **Go** |
-| **RAM** | >1GB |>100MB| **< 10MB** |
-| **起動時間**</br>(0.8GHz コア) | >500秒 | >30秒 |  **<1秒** |
-| **コスト** | Mac Mini 599$ | 大半の Linux SBC </br>~50$ |**あらゆる Linux ボード**</br>**最安 10$** |
-<img src="assets/compare.jpg" alt="PicoClaw" width="512">
-
-
 ## 🦾 デモンストレーション
-### 🛠️ スタンダードアシスタントワークフロー
+
+### 🛠️ 標準 AI ワークフロー
+
 <table align="center">
   <tr align="center">
-    <th><p align="center">🧩 フルスタックエンジニア</p></th>
-    <th><p align="center">🗂️ ログ＆計画管理</p></th>
+    <th><p align="center">🧩 フルスタックエンジニアリング</p></th>
+    <th><p align="center">🧠 Oracle AI メモリ</p></th>
     <th><p align="center">🔎 Web 検索＆学習</p></th>
   </tr>
   <tr>
@@ -77,693 +51,421 @@
   </tr>
   <tr>
     <td align="center">開発 · デプロイ · スケール</td>
-    <td align="center">スケジュール · 自動化 · メモリ</td>
+    <td align="center">記憶 · 想起 · 永続化</td>
     <td align="center">発見 · インサイト · トレンド</td>
   </tr>
 </table>
 
-### 🐜 革新的な省フットプリントデプロイ
-PicoClaw はほぼすべての Linux デバイスにデプロイできます！
+### ⏰ スケジュールタスク＆リマインダー
 
-- $9.9 [LicheeRV-Nano](https://www.aliexpress.com/item/1005006519668532.html) E(Ethernet) または W(WiFi6) バージョン、最小ホームアシスタントに
-- $30~50 [NanoKVM](https://www.aliexpress.com/item/1005007369816019.html) または $100 [NanoKVM-Pro](https://www.aliexpress.com/item/1005010048471263.html) サーバー自動メンテナンスに
-- $50 [MaixCAM](https://www.aliexpress.com/item/1005008053333693.html) または $100 [MaixCAM2](https://www.kickstarter.com/projects/zepan/maixcam2-build-your-next-gen-4k-ai-camera) スマート監視に
+<p align="center">
+  <img src="assets/picoclaw_scedule.gif" width="600">
+</p>
 
-https://private-user-images.githubusercontent.com/83055338/547056448-e7b031ff-d6f5-4468-bcca-5726b6fecb5c.mp4
-
-🌟 もっと多くのデプロイ事例が待っています！
-
-## 📦 インストール
-
-### コンパイル済みバイナリでインストール
-
-[リリースページ](https://github.com/sipeed/picoclaw/releases) からお使いのプラットフォーム用のファームウェアをダウンロードしてください。
-
-### ソースからインストール（最新機能、開発向け推奨）
-
-```bash
-git clone https://github.com/sipeed/picoclaw.git
-
-cd picoclaw
-make deps
-
-# ビルド（インストール不要）
-make build
-
-# 複数プラットフォーム向けビルド
-make build-all
-
-# ビルドとインストール
-make install
-```
-
-## 🐳 Docker Compose
-
-Docker Compose を使えば、ローカルにインストールせずに PicoClaw を実行できます。
-
-```bash
-# 1. リポジトリをクローン
-git clone https://github.com/sipeed/picoclaw.git
-cd picoclaw
-
-# 2. API キーを設定
-cp config/config.example.json config/config.json
-vim config/config.json      # DISCORD_BOT_TOKEN, プロバイダーの API キーを設定
-
-# 3. ビルドと起動
-docker compose --profile gateway up -d
-
-# 4. ログ確認
-docker compose logs -f picoclaw-gateway
-
-# 5. 停止
-docker compose --profile gateway down
-```
-
-### Agent モード（ワンショット）
-
-```bash
-# 質問を投げる
-docker compose run --rm picoclaw-agent -m "What is 2+2?"
-
-# インタラクティブモード
-docker compose run --rm picoclaw-agent
-```
-
-### リビルド
-
-```bash
-docker compose --profile gateway build --no-cache
-docker compose --profile gateway up -d
-```
-
-### 🚀 クイックスタート（ネイティブ）
-
-> [!TIP]
-> `~/.picoclaw/config.json` に API キーを設定してください。
-> API キーの取得先: [OpenRouter](https://openrouter.ai/keys) (LLM) · [Zhipu](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) (LLM)
-> Web 検索は **任意** です - 無料の [Brave Search API](https://brave.com/search/api) (月 2000 クエリ無料)
-
-**1. 初期化**
-
-```bash
-picoclaw onboard
-```
-
-**2. 設定** (`~/.picoclaw/config.json`)
-
-```json
-{
-  "agents": {
-    "defaults": {
-      "workspace": "~/.picoclaw/workspace",
-      "model": "glm-4.7",
-      "max_tokens": 8192,
-      "temperature": 0.7,
-      "max_tool_iterations": 20
-    }
-  },
-  "providers": {
-    "openrouter": {
-      "api_key": "xxx",
-      "api_base": "https://openrouter.ai/api/v1"
-    }
-  },
-  "tools": {
-    "web": {
-      "search": {
-        "api_key": "YOUR_BRAVE_API_KEY",
-        "max_results": 5
-      }
-    }
-  },
-  "heartbeat": {
-    "enabled": true,
-    "interval": 30
-  }
-}
-```
-
-**3. API キーの取得**
-
-- **LLM プロバイダー**: [OpenRouter](https://openrouter.ai/keys) · [Zhipu](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) · [Anthropic](https://console.anthropic.com) · [OpenAI](https://platform.openai.com) · [Gemini](https://aistudio.google.com/api-keys)
-- **Web 検索**（任意）: [Brave Search](https://brave.com/search/api) - 無料枠あり（月 2000 リクエスト）
-
-> **注意**: 完全な設定テンプレートは `config.example.json` を参照してください。
-
-**3. チャット**
-
-```bash
-picoclaw agent -m "What is 2+2?"
-```
-
-これだけです！2 分で AI アシスタントが動きます。
+リマインダーの設定、定期タスクの実行、ワークフローの自動化 — スケジュールジョブは Oracle AI Database に完全な ACID 保証とともに永続的に保存されます。
 
 ---
 
-## 💬 チャットアプリ
+## クイックスタート（5分）
 
-Telegram、Discord、QQ、DingTalk、LINE で PicoClaw と会話できます
+必要なもの：**Go 1.24+**、**Ollama**、**Docker**（Oracle AI Database 用）。
 
-| チャネル | セットアップ |
-|---------|------------|
-| **Telegram** | 簡単（トークンのみ） |
-| **Discord** | 簡単（Bot トークン + Intents） |
-| **QQ** | 簡単（AppID + AppSecret） |
-| **DingTalk** | 普通（アプリ認証情報） |
-| **LINE** | 普通（認証情報 + Webhook URL） |
-
-<details>
-<summary><b>Telegram</b>（推奨）</summary>
-
-**1. Bot を作成**
-
-- Telegram を開き、`@BotFather` を検索
-- `/newbot` を送信、プロンプトに従う
-- トークンをコピー
-
-**2. 設定**
-
-```json
-{
-  "channels": {
-    "telegram": {
-      "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
-    }
-  }
-}
-```
-
-> ユーザー ID は Telegram の `@userinfobot` から取得できます。
-
-**3. 起動**
+### ステップ 1: ビルド
 
 ```bash
-picoclaw gateway
-```
-</details>
-
-
-<details>
-<summary><b>Discord</b></summary>
-
-**1. Bot を作成**
-- https://discord.com/developers/applications にアクセス
-- アプリケーションを作成 → Bot → Add Bot
-- Bot トークンをコピー
-
-**2. Intents を有効化**
-- Bot の設定画面で **MESSAGE CONTENT INTENT** を有効化
-- （任意）**SERVER MEMBERS INTENT** も有効化
-
-**3. ユーザー ID を取得**
-- Discord 設定 → 詳細設定 → **開発者モード** を有効化
-- 自分のアバターを右クリック → **ユーザーIDをコピー**
-
-**4. 設定**
-
-```json
-{
-  "channels": {
-    "discord": {
-      "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
-    }
-  }
-}
+git clone https://github.com/jasperan/picooraclaw.git
+cd picooraclaw
+make build
 ```
 
-**5. Bot を招待**
-- OAuth2 → URL Generator
-- Scopes: `bot`
-- Bot Permissions: `Send Messages`, `Read Message History`
-- 生成された招待 URL を開き、サーバーに Bot を追加
-
-**6. 起動**
+### ステップ 2: 初期化
 
 ```bash
-picoclaw gateway
+./build/picooraclaw onboard
 ```
 
-</details>
-
-<details>
-<summary><b>QQ</b></summary>
-
-**1. Bot を作成**
-
-- [QQ オープンプラットフォーム](https://q.qq.com/#) にアクセス
-- アプリケーションを作成 → **AppID** と **AppSecret** を取得
-
-**2. 設定**
-
-```json
-{
-  "channels": {
-    "qq": {
-      "enabled": true,
-      "app_id": "YOUR_APP_ID",
-      "app_secret": "YOUR_APP_SECRET",
-      "allow_from": []
-    }
-  }
-}
-```
-
-> `allow_from` を空にすると全ユーザーを許可、QQ番号を指定してアクセス制限可能。
-
-**3. 起動**
+### ステップ 3: Ollama を起動してモデルを取得
 
 ```bash
-picoclaw gateway
+# Ollama のインストール: https://ollama.com/download
+ollama pull qwen3:latest
 ```
 
-</details>
+### ステップ 4: Ollama 用に設定
 
-<details>
-<summary><b>DingTalk</b></summary>
-
-**1. Bot を作成**
-
-- [オープンプラットフォーム](https://open.dingtalk.com/) にアクセス
-- 内部アプリを作成
-- Client ID と Client Secret をコピー
-
-**2. 設定**
-
-```json
-{
-  "channels": {
-    "dingtalk": {
-      "enabled": true,
-      "client_id": "YOUR_CLIENT_ID",
-      "client_secret": "YOUR_CLIENT_SECRET",
-      "allow_from": []
-    }
-  }
-}
-```
-
-> `allow_from` を空にすると全ユーザーを許可、ユーザーIDを指定してアクセス制限可能。
-
-**3. 起動**
-
-```bash
-picoclaw gateway
-```
-
-</details>
-
-<details>
-<summary><b>LINE</b></summary>
-
-**1. LINE 公式アカウントを作成**
-
-- [LINE Developers Console](https://developers.line.biz/) にアクセス
-- プロバイダーを作成 → Messaging API チャネルを作成
-- **チャネルシークレット** と **チャネルアクセストークン** をコピー
-
-**2. 設定**
-
-```json
-{
-  "channels": {
-    "line": {
-      "enabled": true,
-      "channel_secret": "YOUR_CHANNEL_SECRET",
-      "channel_access_token": "YOUR_CHANNEL_ACCESS_TOKEN",
-      "webhook_host": "0.0.0.0",
-      "webhook_port": 18791,
-      "webhook_path": "/webhook/line",
-      "allow_from": []
-    }
-  }
-}
-```
-
-**3. Webhook URL を設定**
-
-LINE の Webhook には HTTPS が必要です。リバースプロキシまたはトンネルを使用してください:
-
-```bash
-# ngrok の例
-ngrok http 18791
-```
-
-LINE Developers Console で Webhook URL を `https://あなたのドメイン/webhook/line` に設定し、**Webhook の利用** を有効にしてください。
-
-**4. 起動**
-
-```bash
-picoclaw gateway
-```
-
-> グループチャットでは @メンション時のみ応答します。返信は元メッセージを引用する形式です。
-
-> **Docker Compose**: `picoclaw-gateway` サービスに `ports: ["18791:18791"]` を追加して Webhook ポートを公開してください。
-
-</details>
-
-## ⚙️ 設定
-
-設定ファイル: `~/.picoclaw/config.json`
-
-### ワークスペース構成
-
-PicoClaw は設定されたワークスペース（デフォルト: `~/.picoclaw/workspace`）にデータを保存します：
-
-```
-~/.picoclaw/workspace/
-├── sessions/          # 会話セッションと履歴
-├── memory/            # 長期メモリ（MEMORY.md）
-├── state/             # 永続状態（最後のチャネルなど）
-├── cron/              # スケジュールジョブデータベース
-├── skills/            # カスタムスキル
-├── AGENTS.md          # エージェントの行動ガイド
-├── HEARTBEAT.md       # 定期タスクプロンプト（30分ごとに確認）
-├── IDENTITY.md        # エージェントのアイデンティティ
-├── SOUL.md            # エージェントのソウル
-├── TOOLS.md           # ツールの説明
-└── USER.md            # ユーザー設定
-```
-
-### 🔒 セキュリティサンドボックス
-
-PicoClaw はデフォルトでサンドボックス環境で実行されます。エージェントは設定されたワークスペース内のファイルにのみアクセスし、コマンドを実行できます。
-
-#### デフォルト設定
+`~/.picooraclaw/config.json` を編集:
 
 ```json
 {
   "agents": {
     "defaults": {
-      "workspace": "~/.picoclaw/workspace",
-      "restrict_to_workspace": true
+      "provider": "ollama",
+      "model": "qwen3:latest",
+      "max_tokens": 8192,
+      "temperature": 0.7
+    }
+  },
+  "providers": {
+    "ollama": {
+      "api_key": "",
+      "api_base": "http://localhost:11434/v1"
     }
   }
 }
 ```
 
-| オプション | デフォルト | 説明 |
-|-----------|-----------|------|
-| `workspace` | `~/.picoclaw/workspace` | エージェントの作業ディレクトリ |
-| `restrict_to_workspace` | `true` | ファイル/コマンドアクセスをワークスペースに制限 |
+### ステップ 5: チャット
 
-#### 保護対象ツール
-
-`restrict_to_workspace: true` の場合、以下のツールがサンドボックス化されます：
-
-| ツール | 機能 | 制限 |
-|-------|------|------|
-| `read_file` | ファイル読み込み | ワークスペース内のファイルのみ |
-| `write_file` | ファイル書き込み | ワークスペース内のファイルのみ |
-| `list_dir` | ディレクトリ一覧 | ワークスペース内のディレクトリのみ |
-| `edit_file` | ファイル編集 | ワークスペース内のファイルのみ |
-| `append_file` | ファイル追記 | ワークスペース内のファイルのみ |
-| `exec` | コマンド実行 | コマンドパスはワークスペース内である必要あり |
-
-#### exec ツールの追加保護
-
-`restrict_to_workspace: false` でも、`exec` ツールは以下の危険なコマンドをブロックします：
-
-- `rm -rf`, `del /f`, `rmdir /s` — 一括削除
-- `format`, `mkfs`, `diskpart` — ディスクフォーマット
-- `dd if=` — ディスクイメージング
-- `/dev/sd[a-z]` への書き込み — 直接ディスク書き込み
-- `shutdown`, `reboot`, `poweroff` — システムシャットダウン
-- フォークボム `:(){ :|:& };:`
-
-#### エラー例
-
-```
-[ERROR] tool: Tool execution failed
-{tool=exec, error=Command blocked by safety guard (path outside working dir)}
-```
-
-```
-[ERROR] tool: Tool execution failed
-{tool=exec, error=Command blocked by safety guard (dangerous pattern detected)}
-```
-
-#### 制限の無効化（セキュリティリスク）
-
-エージェントにワークスペース外のパスへのアクセスが必要な場合：
-
-**方法1: 設定ファイル**
-```json
-{
-  "agents": {
-    "defaults": {
-      "restrict_to_workspace": false
-    }
-  }
-}
-```
-
-**方法2: 環境変数**
 ```bash
-export PICOCLAW_AGENTS_DEFAULTS_RESTRICT_TO_WORKSPACE=false
+# ワンショット
+./build/picooraclaw agent -m "こんにちは！"
+
+# インタラクティブモード
+./build/picooraclaw agent
 ```
 
-> ⚠️ **警告**: この制限を無効にすると、エージェントはシステム上の任意のパスにアクセスできるようになります。制御された環境でのみ慎重に使用してください。
+API キー不要、クラウド依存なし — これだけで AI アシスタントが動きます。
 
-#### セキュリティ境界の一貫性
+---
 
-`restrict_to_workspace` 設定は、すべての実行パスで一貫して適用されます：
+## Oracle AI ベクトル検索の追加
 
-| 実行パス | セキュリティ境界 |
-|---------|-----------------|
-| メインエージェント | `restrict_to_workspace` ✅ |
-| サブエージェント / Spawn | 同じ制限を継承 ✅ |
-| ハートビートタスク | 同じ制限を継承 ✅ |
+Oracle は永続ストレージ、セマンティックメモリ（意味で記憶・想起）、ACID トランザクションを提供します。
 
-すべてのパスで同じワークスペース制限が適用されます — サブエージェントやスケジュールタスクを通じてセキュリティ境界をバイパスする方法はありません。
+セットアップスクリプトで全て自動化:
 
-### ハートビート（定期タスク）
-
-PicoClaw は自動的に定期タスクを実行できます。ワークスペースに `HEARTBEAT.md` ファイルを作成します：
-
-```markdown
-# 定期タスク
-
-- 重要なメールをチェック
-- 今後の予定を確認
-- 天気予報をチェック
+```bash
+./scripts/setup-oracle.sh [オプション: パスワード]
 ```
 
-エージェントは30分ごと（設定可能）にこのファイルを読み込み、利用可能なツールを使ってタスクを実行します。
+このスクリプトが自動で行うこと:
+1. Oracle AI Database Free コンテナを起動
+2. データベースの準備が整うまで待機
+3. 必要な権限を持つ `picooraclaw` データベースユーザーを作成
+4. `~/.picooraclaw/config.json` に Oracle 接続設定を反映
+5. `picooraclaw setup-oracle` でスキーマと ONNX 埋め込みモデルを初期化
 
-#### spawn で非同期タスク実行
+### セマンティックメモリをテスト
 
-時間のかかるタスク（Web検索、API呼び出し）には `spawn` ツールを使って**サブエージェント**を作成します：
+```bash
+# 事実を保存
+./build/picooraclaw agent -m "私の好きなプログラミング言語は Go です"
 
-```markdown
-# 定期タスク
-
-## クイックタスク（直接応答）
-- 現在時刻を報告
-
-## 長時間タスク（spawn で非同期）
-- AIニュースを検索して要約
-- メールをチェックして重要なメッセージを報告
+# 意味で想起（キーワードではない）
+./build/picooraclaw agent -m "どのプログラミング言語が好きですか？"
 ```
 
-**主な特徴:**
+2番目のコマンドは 384 次元ベクトルのコサイン類似度で保存済みメモリを検索します。
 
-| 機能 | 説明 |
-|------|------|
-| **spawn** | 非同期サブエージェントを作成、ハートビートをブロックしない |
-| **独立コンテキスト** | サブエージェントは独自のコンテキストを持ち、セッション履歴なし |
-| **message ツール** | サブエージェントは message ツールで直接ユーザーと通信 |
-| **非ブロッキング** | spawn 後、ハートビートは次のタスクへ継続 |
+### Oracle に保存されているデータを確認
 
-#### サブエージェントの通信方法
-
-```
-ハートビート発動
-    ↓
-エージェントが HEARTBEAT.md を読む
-    ↓
-長いタスク: spawn サブエージェント
-    ↓                           ↓
-次のタスクへ継続          サブエージェントが独立して動作
-    ↓                           ↓
-全タスク完了              message ツールを使用
-    ↓                           ↓
-HEARTBEAT_OK 応答         ユーザーが直接結果を受け取る
+```bash
+picooraclaw oracle-inspect [テーブル] [オプション]
 ```
 
-サブエージェントはツール（message、web_search など）にアクセスでき、メインエージェントを経由せずにユーザーと通信できます。
+**テーブル:** `memories`, `sessions`, `transcripts`, `state`, `notes`, `prompts`, `config`, `meta`
 
-**設定:**
+```bash
+# 全体のダッシュボード
+./build/picooraclaw oracle-inspect
 
-```json
-{
-  "heartbeat": {
-    "enabled": true,
-    "interval": 30
-  }
-}
+# セマンティック検索
+./build/picooraclaw oracle-inspect memories -s "ユーザーが好むもの"
+
+# システムプロンプトを表示
+./build/picooraclaw oracle-inspect prompts IDENTITY
 ```
 
-| オプション | デフォルト | 説明 |
-|-----------|-----------|------|
-| `enabled` | `true` | ハートビートの有効/無効 |
-| `interval` | `30` | チェック間隔（分）、最小5分 |
+---
 
-**環境変数:**
-- `PICOCLAW_HEARTBEAT_ENABLED=false` で無効化
-- `PICOCLAW_HEARTBEAT_INTERVAL=60` で間隔変更
+## Oracle ストレージの仕組み
 
-### 基本設定
+<p align="center">
+  <img src="assets/arch.jpg" alt="PicoOraClaw アーキテクチャ" width="680">
+</p>
 
-1.  **設定ファイルの作成:**
+```
+                           ┌──────────────────────────────────────────┐
+                           │         Oracle AI Database               │
+                           │                                          │
+  picooraclaw バイナリ      │  ┌──────────────┐  ┌──────────────────┐ │
+  ┌───────────────────┐    │  │ PICO_MEMORIES │  │ PICO_DAILY_NOTES │ │
+  │  AgentLoop        │    │  │  + VECTOR idx │  │  + VECTOR idx    │ │
+  │  ├─ SessionStore ──────│──│──────────────┐│  └──────────────────┘ │
+  │  ├─ StateStore   ──────│──│ PICO_SESSIONS││                       │
+  │  ├─ MemoryStore  ──────│──│ PICO_STATE   ││  ┌──────────────────┐ │
+  │  ├─ PromptStore  ──────│──│ PICO_PROMPTS ││  │ ALL_MINILM_L12_V2│ │
+  │  └─ Tools:       │    │  │ PICO_META    ││  │   (ONNX モデル)  │ │
+  │     ├─ remember  ──────│──└──────────────┘│  │  384次元ベクトル  │ │
+  │     └─ recall    │    │   go-ora v2.9.0  │  └──────────────────┘ │
+  └───────────────────┘    │   (純 Go ドライバ) │                      │
+         (純 Go)           └──────────────────────────────────────────┘
+```
 
-    ```bash
-    cp config.example.json config/config.json
-    ```
+| テーブル | 用途 |
+|---|---|
+| `PICO_MEMORIES` | 384次元ベクトル埋め込みによる長期メモリ |
+| `PICO_SESSIONS` | チャネルごとのチャット履歴 |
+| `PICO_TRANSCRIPTS` | 完全な会話監査ログ |
+| `PICO_STATE` | エージェントのキー・バリューステート |
+| `PICO_DAILY_NOTES` | ベクトル埋め込み付きデイリーノート |
+| `PICO_PROMPTS` | システムプロンプト（IDENTITY.md, SOUL.md など） |
+| `PICO_CONFIG` | ランタイム設定 |
+| `PICO_META` | スキーマバージョニングメタデータ |
 
-2.  **設定の編集:**
+---
 
-    ```json
-    {
-      "providers": {
-        "openrouter": {
-          "api_key": "sk-or-v1-..."
-        }
-      },
-      "channels": {
-        "discord": {
-          "enabled": true,
-          "token": "YOUR_DISCORD_BOT_TOKEN"
-        }
-      }
-    }
-    ```
+## CLI リファレンス
 
-3.  **実行**
+| コマンド | 説明 |
+|---|---|
+| `picooraclaw onboard` | 設定とワークスペースの初期化 |
+| `picooraclaw agent -m "..."` | ワンショットチャット |
+| `picooraclaw agent` | インタラクティブチャットモード |
+| `picooraclaw gateway` | チャネル付き長時間稼働サービスの起動 |
+| `picooraclaw status` | ステータス表示 |
+| `picooraclaw setup-oracle` | Oracle スキーマ + ONNX モデルの初期化 |
+| `picooraclaw oracle-inspect` | Oracle に保存されたデータを確認 |
+| `picooraclaw oracle-inspect memories -s "クエリ"` | メモリのセマンティック検索 |
+| `picooraclaw cron list` | スケジュールジョブの一覧 |
+| `picooraclaw skills list` | インストール済みスキルの一覧 |
 
-    ```bash
-    picoclaw agent -m "Hello"
-    ```
-</details>
+---
+
+## クラウド LLM の使用（Ollama の代わりに）
 
 <details>
-<summary><b>完全な設定例</b></summary>
+<summary><b>OpenRouter（全モデルにアクセス）</b></summary>
 
 ```json
 {
   "agents": {
     "defaults": {
+      "provider": "openrouter",
       "model": "anthropic/claude-opus-4-5"
     }
   },
   "providers": {
     "openrouter": {
-      "apiKey": "sk-or-v1-xxx"
-    },
-    "groq": {
-      "apiKey": "gsk_xxx"
+      "api_key": "sk-or-v1-xxx",
+      "api_base": "https://openrouter.ai/api/v1"
     }
-  },
+  }
+}
+```
+
+[openrouter.ai/keys](https://openrouter.ai/keys) でキーを取得（月 200K 無料トークン）。
+
+</details>
+
+<details>
+<summary><b>全サポートプロバイダー</b></summary>
+
+| プロバイダー | 用途 | API キー取得先 |
+|---|---|---|
+| `ollama` | ローカル推論（推奨） | [ollama.com](https://ollama.com) |
+| `openrouter` | 全モデルへのアクセス | [openrouter.ai](https://openrouter.ai/keys) |
+| `anthropic` | Claude モデル | [console.anthropic.com](https://console.anthropic.com) |
+| `openai` | GPT モデル | [platform.openai.com](https://platform.openai.com) |
+| `gemini` | Gemini モデル | [aistudio.google.com](https://aistudio.google.com) |
+| `zhipu` | Zhipu/GLM モデル | [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) |
+| `deepseek` | DeepSeek モデル | [platform.deepseek.com](https://platform.deepseek.com) |
+| `groq` | 高速推論 + 音声文字起こし | [console.groq.com](https://console.groq.com) |
+
+</details>
+
+---
+
+## チャットチャネル
+
+`gateway` コマンドで PicoOraClaw を Telegram、Discord、Slack、QQ、DingTalk、LINE、Feishu に接続できます。
+
+<details>
+<summary><b>Telegram</b>（推奨）</summary>
+
+1. Telegram で `@BotFather` にメッセージ → `/newbot` → トークンをコピー
+2. `~/.picooraclaw/config.json` に追加:
+
+```json
+{
   "channels": {
     "telegram": {
       "enabled": true,
-      "token": "123456:ABC...",
-      "allowFrom": ["123456789"]
-    },
+      "token": "YOUR_BOT_TOKEN",
+      "allow_from": ["YOUR_USER_ID"]
+    }
+  }
+}
+```
+
+> ユーザー ID は Telegram の `@userinfobot` で取得できます。
+
+3. `picooraclaw gateway` を実行
+
+</details>
+
+<details>
+<summary><b>Discord</b></summary>
+
+1. [discord.com/developers](https://discord.com/developers/applications) でボットを作成、MESSAGE CONTENT INTENT を有効化
+2. 設定に追加:
+
+```json
+{
+  "channels": {
     "discord": {
       "enabled": true,
-      "token": "",
-      "allow_from": [""]
-    },
-    "whatsapp": {
-      "enabled": false
-    },
-    "feishu": {
-      "enabled": false,
-      "appId": "cli_xxx",
-      "appSecret": "xxx",
-      "encryptKey": "",
-      "verificationToken": "",
-      "allowFrom": []
+      "token": "YOUR_BOT_TOKEN",
+      "allow_from": ["YOUR_USER_ID"]
     }
-  },
-  "tools": {
-    "web": {
-      "search": {
-        "apiKey": "BSA..."
-      }
+  }
+}
+```
+
+3. `Send Messages` + `Read Message History` 権限でボットを招待
+4. `picooraclaw gateway` を実行
+
+</details>
+
+<details>
+<summary><b>QQ, DingTalk, LINE, Feishu, Slack</b></summary>
+
+`config/config.example.json` を参照してください。各チャネルは同じパターンに従います:
+
+```json
+{
+  "channels": {
+    "<チャネル名>": {
+      "enabled": true,
+      "<認証情報>": "...",
+      "allow_from": []
     }
-  },
-  "heartbeat": {
+  }
+}
+```
+
+設定後に `picooraclaw gateway` を実行してください。
+
+</details>
+
+---
+
+## Oracle on Autonomous Database（クラウド）
+
+<details>
+<summary><b>ADB ウォレットレス TLS</b></summary>
+
+```json
+{
+  "oracle": {
     "enabled": true,
-    "interval": 30
+    "mode": "adb",
+    "dsn": "(description=(retry_count=20)...)",
+    "user": "picooraclaw",
+    "password": "YourPass123"
   }
 }
 ```
 
 </details>
 
-## CLI リファレンス
+<details>
+<summary><b>Oracle 設定リファレンス</b></summary>
 
-| コマンド | 説明 |
-|---------|------|
-| `picoclaw onboard` | 設定＆ワークスペースの初期化 |
-| `picoclaw agent -m "..."` | エージェントとチャット |
-| `picoclaw agent` | インタラクティブチャットモード |
-| `picoclaw gateway` | ゲートウェイを起動 |
-| `picoclaw status` | ステータスを表示 |
+| フィールド | 環境変数 | デフォルト | 説明 |
+|---|---|---|---|
+| `enabled` | `PICO_ORACLE_ENABLED` | `false` | Oracle バックエンドを有効化 |
+| `mode` | `PICO_ORACLE_MODE` | `freepdb` | `freepdb` または `adb` |
+| `host` | `PICO_ORACLE_HOST` | `localhost` | Oracle ホスト |
+| `port` | `PICO_ORACLE_PORT` | `1521` | リスナーポート |
+| `service` | `PICO_ORACLE_SERVICE` | `FREEPDB1` | サービス名 |
+| `user` | `PICO_ORACLE_USER` | `picooraclaw` | DB ユーザー名 |
+| `password` | `PICO_ORACLE_PASSWORD` | — | DB パスワード |
+| `onnxModel` | `PICO_ORACLE_ONNX_MODEL` | `ALL_MINILM_L12_V2` | 埋め込み用 ONNX モデル |
+| `agentId` | `PICO_ORACLE_AGENT_ID` | `default` | マルチエージェント分離キー |
 
-## 🤝 コントリビュート＆ロードマップ
-
-PR 歓迎！コードベースは意図的に小さく読みやすくしています。🤗
-
-Discord: https://discord.gg/V4sAZ9XWpN
-
-<img src="assets/wechat.png" alt="PicoClaw" width="512">
-
-
-## 🐛 トラブルシューティング
-
-### Web 検索で「API 配置问题」と表示される
-
-検索 API キーをまだ設定していない場合、これは正常です。PicoClaw は手動検索用の便利なリンクを提供します。
-
-Web 検索を有効にするには：
-1. [https://brave.com/search/api](https://brave.com/search/api) で無料の API キーを取得（月 2000 クエリ無料）
-2. `~/.picoclaw/config.json` に追加：
-   ```json
-   {
-     "tools": {
-       "web": {
-         "search": {
-           "api_key": "YOUR_BRAVE_API_KEY",
-           "max_results": 5
-         }
-       }
-     }
-   }
-   ```
-
-### コンテンツフィルタリングエラーが出る
-
-一部のプロバイダー（Zhipu など）にはコンテンツフィルタリングがあります。クエリを言い換えるか、別のモデルを使用してください。
-
-### Telegram Bot で「Conflict: terminated by other getUpdates」と表示される
-
-別のインスタンスが実行中の場合に発生します。`picoclaw gateway` が 1 つだけ実行されていることを確認してください。
+</details>
 
 ---
 
-## 📝 API キー比較
+## トラブルシューティング
 
-| サービス | 無料枠 | ユースケース |
-|---------|--------|------------|
-| **OpenRouter** | 月 200K トークン | 複数モデル（Claude, GPT-4 など） |
-| **Zhipu** | 月 200K トークン | 中国ユーザー向け最適 |
-| **Brave Search** | 月 2000 クエリ | Web 検索機能 |
-| **Groq** | 無料枠あり | 高速推論（Llama, Mixtral） |
+<details>
+<summary><b>Oracle: 接続拒否 / ORA-12541</b></summary>
+
+```bash
+docker ps | grep oracle          # 実行中か確認
+docker logs oracle-free          # "DATABASE IS READY" を待つ
+ss -tlnp | grep 1521            # ポート 1521 がリスニング中か確認
+```
+
+</details>
+
+<details>
+<summary><b>Oracle: ORA-01017 ユーザー名/パスワード無効</b></summary>
+
+```bash
+docker exec -it oracle-free sqlplus sys/YourPass123@localhost:1521/FREEPDB1 as sysdba
+SQL> ALTER USER picooraclaw IDENTIFIED BY NewPassword123;
+```
+
+</details>
+
+<details>
+<summary><b>Oracle: VECTOR_EMBEDDING() が ORA-04063 を返す</b></summary>
+
+ONNX モデルが読み込まれていません。`picooraclaw setup-oracle` を実行してください。
+
+</details>
+
+<details>
+<summary><b>エージェントがファイルベースモードにフォールバックする</b></summary>
+
+Oracle は有効だが起動時に接続が失敗した場合。確認事項:
+- Oracle コンテナは正常か？（`docker ps`）
+- 設定と `ORACLE_PWD` のパスワードが一致しているか？
+- サービス名は `FREEPDB1` か？（`FREE` や `XE` ではない）
+
+</details>
+
+---
+
+## ビルドターゲット
+
+```bash
+make build          # 現在のプラットフォーム向けビルド
+make build-all      # クロスコンパイル: linux/{amd64,arm64,riscv64}, darwin/arm64, windows/amd64
+make install        # ビルド + ~/.local/bin にインストール
+make test           # go test ./...
+make fmt            # go fmt ./...
+make vet            # go vet ./...
+```
+
+## Docker Compose
+
+```bash
+# Oracle 付きフルスタック
+PICO_ORACLE_PASSWORD=YourPass123 docker compose --profile oracle --profile gateway up -d
+
+# Oracle なし
+docker compose --profile gateway up -d
+
+# ワンショットエージェント
+docker compose run --rm picooraclaw-agent -m "こんにちは！"
+```
+
+## 機能一覧
+
+- 単一静的バイナリ（約 10MB RAM）、RISC-V/ARM64/x86_64 対応
+- Ollama、OpenRouter、Anthropic、OpenAI、Gemini、Zhipu、DeepSeek、Groq プロバイダー
+- Oracle AI Database + AI ベクトル検索（384次元 ONNX 埋め込み）
+- チャットチャネル: Telegram、Discord、Slack、QQ、DingTalk、LINE、Feishu、WhatsApp
+- cron 式によるスケジュールタスク
+- ハートビート定期タスク
+- スキルシステム（ワークスペース、グローバル、GitHub ホスト）
+- ワークスペース制限によるセキュリティサンドボックス
+- Oracle 不使用時はファイルベースストレージへのグレースフルフォールバック
+
+## コントリビュート
+
+PR 歓迎！Discord: <https://discord.gg/V4sAZ9XWpN>
