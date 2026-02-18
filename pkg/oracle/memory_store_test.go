@@ -101,7 +101,7 @@ func TestMemoryStore_Remember(t *testing.T) {
 	store := NewMemoryStore(db, "test-agent", nil)
 
 	mock.ExpectExec("INSERT INTO PICO_MEMORIES").
-		WithArgs(sqlmock.AnyArg(), "test-agent", "My favorite color is blue", sqlmock.AnyArg(), 0.8, "preference").
+		WithArgs(sqlmock.AnyArg(), "test-agent", "My favorite color is blue", 0.8, "preference").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	memID, err := store.Remember("My favorite color is blue", 0.8, "preference")
@@ -177,7 +177,7 @@ func TestMemoryStore_WriteLongTermDelegatesToRemember(t *testing.T) {
 	store := NewMemoryStore(db, "test-agent", nil)
 
 	mock.ExpectExec("INSERT INTO PICO_MEMORIES").
-		WithArgs(sqlmock.AnyArg(), "test-agent", "Important fact", sqlmock.AnyArg(), 0.7, "long_term").
+		WithArgs(sqlmock.AnyArg(), "test-agent", "Important fact", 0.7, "long_term").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.WriteLongTerm("Important fact")

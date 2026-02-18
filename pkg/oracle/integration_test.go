@@ -52,7 +52,7 @@ func TestFullWorkflow_SessionStateMemory(t *testing.T) {
 
 	// 4. Store a memory (simulating remember tool)
 	mock.ExpectExec("INSERT INTO PICO_MEMORIES").
-		WithArgs(sqlmock.AnyArg(), "agent-1", "User likes Go programming", sqlmock.AnyArg(), 0.8, "preference").
+		WithArgs(sqlmock.AnyArg(), "agent-1", "User likes Go programming", 0.8, "preference").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	memID, err := memoryStore.Remember("User likes Go programming", 0.8, "preference")
