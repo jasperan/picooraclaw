@@ -14,6 +14,12 @@
     <a href="https://x.com/SipeedIO"><img src="https://img.shields.io/badge/X_(Twitter)-SipeedIO-black?style=flat&logo=x&logoColor=white" alt="Twitter"></a>
   </p>
 
+  <p>
+    <a href="https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/jasperan/picooraclaw/raw/main/deploy/oci/orm/picooraclaw-orm.zip">
+      <img src="https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg" alt="Deploy to Oracle Cloud"/>
+    </a>
+  </p>
+
  [中文](README.zh.md) | [日本語](README.ja.md) | **English**
 </div>
 
@@ -128,6 +134,33 @@ Edit `~/.picooraclaw/config.json`:
 ```
 
 That's it — you have a working AI assistant with local inference. No API keys, no cloud dependency.
+
+---
+
+## Deploy to Oracle Cloud (One-Click)
+
+Deploy a fully configured PicoOraClaw instance on OCI with Oracle AI Database, Ollama, and the gateway — all automated.
+
+[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/jasperan/picooraclaw/raw/main/deploy/oci/orm/picooraclaw-orm.zip)
+
+**What gets deployed:**
+- OCI Compute instance (shape of your choice, ARM A1.Flex is Always Free)
+- Ollama with `gemma3:270m` pre-loaded for CPU inference
+- Oracle AI Database (container by default, or managed Autonomous DB)
+- PicoOraClaw gateway running as a systemd service
+
+**After deployment (~5-8 min for setup to complete):**
+
+```bash
+# Check setup progress
+ssh opc@<public_ip> -t 'tail -f /var/log/picooraclaw-setup.log'
+
+# Start chatting
+ssh opc@<public_ip> -t picooraclaw agent
+
+# Check gateway health
+curl http://<public_ip>:18790/health
+```
 
 ---
 

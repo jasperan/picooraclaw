@@ -1,4 +1,4 @@
-.PHONY: all build install uninstall clean help test
+.PHONY: all build install uninstall clean help test orm-zip
 
 # Build variables
 BINARY_NAME=picooraclaw
@@ -139,6 +139,16 @@ deps:
 ## run: Build and run picooraclaw
 run: build
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
+
+## orm-zip: Build ORM stack zip for "Deploy to OCI" button
+orm-zip:
+	@echo "Building ORM stack zip..."
+	@mkdir -p deploy/oci/orm
+	@cd deploy/oci && zip -r orm/picooraclaw-orm.zip \
+		*.tf *.yaml scripts/ \
+		-x "orm/*" "*.tfstate*" ".terraform/*"
+	@echo "Created deploy/oci/orm/picooraclaw-orm.zip"
+	@ls -lh deploy/oci/orm/picooraclaw-orm.zip
 
 ## help: Show this help message
 help:
