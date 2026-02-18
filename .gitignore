@@ -48,5 +48,8 @@ Thumbs.db
 *.swp
 *.swo
 
+# Design docs (local only)
+docs/plans/
+
 # goreleaser
 .env.example
