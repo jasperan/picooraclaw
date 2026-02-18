@@ -264,3 +264,16 @@ func (sm *SessionManager) loadSessions() error {
 
 	return nil
 }
+
+// SetHistory replaces the message history of a session.
+func (sm *SessionManager) SetHistory(key string, history []providers.Message) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	session, ok := sm.sessions[key]
+	if ok {
+		msgs := make([]providers.Message, len(history))
+		copy(msgs, history)
+		session.Messages = msgs
+	}
+}

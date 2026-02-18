@@ -27,13 +27,16 @@ type CronTool struct {
 	mu          sync.RWMutex
 }
 
-// NewCronTool creates a new CronTool
-func NewCronTool(cronService *cron.CronService, executor JobExecutor, msgBus *bus.MessageBus, workspace string) *CronTool {
+// NewCronTool creates a new CronTool.
+// execTimeout: 0 means no timeout, >0 sets the timeout duration for shell commands.
+func NewCronTool(cronService *cron.CronService, executor JobExecutor, msgBus *bus.MessageBus, workspace string, execTimeout time.Duration) *CronTool {
+	execTool := NewExecTool(workspace, false)
+	execTool.SetTimeout(execTimeout)
 	return &CronTool{
 		cronService: cronService,
 		executor:    executor,
 		msgBus:      msgBus,
-		execTool:    NewExecTool(workspace, false),
+		execTool:    execTool,
 	}
 }
 

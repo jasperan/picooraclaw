@@ -18,6 +18,7 @@ type SessionManagerInterface interface {
 	AddMessage(key, role, content string)
 	AddFullMessage(key string, msg providers.Message)
 	GetHistory(key string) []providers.Message
+	SetHistory(key string, history []providers.Message)
 	GetSummary(key string) string
 	SetSummary(key, summary string)
 	TruncateHistory(key string, keepLast int)

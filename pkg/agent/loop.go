@@ -42,6 +42,13 @@ type AgentLoop struct {
 	tools          *tools.ToolRegistry
 	running        atomic.Bool
 	summarizing    sync.Map // Tracks which sessions are currently being summarized
+	channelManager channelManagerInterface
+}
+
+// channelManagerInterface allows the agent loop to query enabled channels.
+type channelManagerInterface interface {
+	GetEnabledChannels() []string
+	HasChannel(name string) bool
 }
 
 // processOptions configures how a message is processed
@@ -77,6 +84,9 @@ func createToolRegistry(workspace string, restrict bool, cfg *config.Config, msg
 		BraveEnabled:         cfg.Tools.Web.Brave.Enabled,
 		DuckDuckGoMaxResults: cfg.Tools.Web.DuckDuckGo.MaxResults,
 		DuckDuckGoEnabled:    cfg.Tools.Web.DuckDuckGo.Enabled,
+		PerplexityAPIKey:     cfg.Tools.Web.Perplexity.APIKey,
+		PerplexityMaxResults: cfg.Tools.Web.Perplexity.MaxResults,
+		PerplexityEnabled:    cfg.Tools.Web.Perplexity.Enabled,
 	}); searchTool != nil {
 		registry.Register(searchTool)
 	}
@@ -200,6 +210,11 @@ func (al *AgentLoop) SetPromptStore(store PromptStoreInterface) {
 	al.contextBuilder.SetPromptStore(store)
 }
 
+// SetChannelManager sets the channel manager so the agent can query channel info.
+func (al *AgentLoop) SetChannelManager(cm channelManagerInterface) {
+	al.channelManager = cm
+}
+
 func (al *AgentLoop) Run(ctx context.Context) error {
 	al.running.Store(true)
 
@@ -312,6 +327,11 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 	// Route system messages to processSystemMessage
 	if msg.Channel == "system" {
 		return al.processSystemMessage(ctx, msg)
+	}
+
+	// Check for slash commands
+	if response, handled := al.handleCommand(ctx, msg); handled {
+		return response, nil
 	}
 
 	// Process as user message
@@ -496,11 +516,40 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				"tools_json":    formatToolsForLog(providerToolDefs),
 			})
 
-		// Call LLM
-		response, err := al.provider.Chat(ctx, messages, providerToolDefs, al.model, map[string]interface{}{
-			"max_tokens":  8192,
-			"temperature": 0.7,
-		})
+		// Call LLM with retry on context/token errors
+		var response *providers.LLMResponse
+		var err error
+		maxRetries := 2
+		for retry := 0; retry <= maxRetries; retry++ {
+			response, err = al.provider.Chat(ctx, messages, providerToolDefs, al.model, map[string]interface{}{
+				"max_tokens":  8192,
+				"temperature": 0.7,
+			})
+
+			if err == nil {
+				break
+			}
+
+			errMsg := strings.ToLower(err.Error())
+			isContextError := strings.Contains(errMsg, "token") ||
+				strings.Contains(errMsg, "context") ||
+				strings.Contains(errMsg, "invalidparameter") ||
+				strings.Contains(errMsg, "length")
+
+			if isContextError && retry < maxRetries {
+				logger.WarnCF("agent", "Context window error, compressing history",
+					map[string]interface{}{"error": err.Error(), "retry": retry})
+				// Drop oldest half of messages (keep system prompt and last message)
+				if len(messages) > 4 {
+					keep := messages[:1] // system prompt
+					mid := 1 + (len(messages)-1)/2
+					keep = append(keep, messages[mid:]...)
+					messages = keep
+				}
+				continue
+			}
+			break
+		}
 
 		if err != nil {
 			logger.ErrorCF("agent", "LLM call failed",
@@ -820,13 +869,128 @@ func (al *AgentLoop) summarizeBatch(ctx context.Context, batch []providers.Messa
 }
 
 // estimateTokens estimates the number of tokens in a message list.
-// Uses rune count instead of byte length so that CJK and other multi-byte
-// characters are not over-counted (a Chinese character is 3 bytes but roughly
-// one token).
+// Uses a safe heuristic of 2.5 characters per token (totalChars * 2 / 5)
+// to account for CJK and other multi-byte characters.
 func (al *AgentLoop) estimateTokens(messages []providers.Message) int {
-	total := 0
+	totalChars := 0
 	for _, m := range messages {
-		total += utf8.RuneCountInString(m.Content) / 3
+		totalChars += utf8.RuneCountInString(m.Content)
 	}
-	return total
+	// 2.5 chars per token = totalChars * 2 / 5
+	return totalChars * 2 / 5
+}
+
+// forceCompression aggressively reduces context when the limit is hit.
+// It drops the oldest 50% of messages, keeping the system prompt and last message.
+func (al *AgentLoop) forceCompression(sessionKey string) {
+	history := al.sessions.GetHistory(sessionKey)
+	if len(history) <= 4 {
+		return
+	}
+
+	// Keep system prompt [0] and last message; drop oldest half of conversation
+	conversation := history[1 : len(history)-1]
+	if len(conversation) == 0 {
+		return
+	}
+
+	mid := len(conversation) / 2
+	droppedCount := mid
+	keptConversation := conversation[mid:]
+
+	newHistory := make([]providers.Message, 0)
+	newHistory = append(newHistory, history[0]) // system prompt
+	newHistory = append(newHistory, providers.Message{
+		Role:    "system",
+		Content: fmt.Sprintf("[System: Emergency compression dropped %d oldest messages due to context limit]", droppedCount),
+	})
+	newHistory = append(newHistory, keptConversation...)
+	newHistory = append(newHistory, history[len(history)-1]) // last message
+
+	al.sessions.SetHistory(sessionKey, newHistory)
+	al.sessions.Save(sessionKey)
+
+	logger.WarnCF("agent", "Forced compression executed", map[string]interface{}{
+		"session_key":  sessionKey,
+		"dropped_msgs": droppedCount,
+		"new_count":    len(newHistory),
+	})
+}
+
+// handleCommand handles slash commands like /show, /list, /switch.
+// Returns the response and true if the message was a command, false otherwise.
+func (al *AgentLoop) handleCommand(_ context.Context, msg bus.InboundMessage) (string, bool) {
+	content := strings.TrimSpace(msg.Content)
+	if !strings.HasPrefix(content, "/") {
+		return "", false
+	}
+
+	parts := strings.Fields(content)
+	if len(parts) == 0 {
+		return "", false
+	}
+
+	cmd := parts[0]
+	args := parts[1:]
+
+	switch cmd {
+	case "/show":
+		if len(args) < 1 {
+			return "Usage: /show [model|channel]", true
+		}
+		switch args[0] {
+		case "model":
+			return fmt.Sprintf("Current model: %s", al.model), true
+		case "channel":
+			return fmt.Sprintf("Current channel: %s", msg.Channel), true
+		default:
+			return fmt.Sprintf("Unknown show target: %s", args[0]), true
+		}
+
+	case "/list":
+		if len(args) < 1 {
+			return "Usage: /list [models|channels]", true
+		}
+		switch args[0] {
+		case "models":
+			return fmt.Sprintf("Configured model: %s (change in config.json)", al.model), true
+		case "channels":
+			if al.channelManager == nil {
+				return "Channel manager not initialized", true
+			}
+			channels := al.channelManager.GetEnabledChannels()
+			if len(channels) == 0 {
+				return "No channels enabled", true
+			}
+			return fmt.Sprintf("Enabled channels: %s", strings.Join(channels, ", ")), true
+		default:
+			return fmt.Sprintf("Unknown list target: %s", args[0]), true
+		}
+
+	case "/switch":
+		if len(args) < 3 || args[1] != "to" {
+			return "Usage: /switch [model|channel] to <name>", true
+		}
+		target := args[0]
+		value := args[2]
+
+		switch target {
+		case "model":
+			oldModel := al.model
+			al.model = value
+			return fmt.Sprintf("Switched model from %s to %s", oldModel, value), true
+		case "channel":
+			if al.channelManager == nil {
+				return "Channel manager not initialized", true
+			}
+			if !al.channelManager.HasChannel(value) && value != "cli" {
+				return fmt.Sprintf("Channel '%s' not found or not enabled", value), true
+			}
+			return fmt.Sprintf("Switched target channel to %s", value), true
+		default:
+			return fmt.Sprintf("Unknown switch target: %s", target), true
+		}
+	}
+
+	return "", false
 }

@@ -141,6 +141,22 @@ func (ss *SessionStore) TruncateHistory(key string, keepLast int) {
 	s.Updated = time.Now()
 }
 
+// SetHistory replaces the session's full message history.
+func (ss *SessionStore) SetHistory(key string, history []providers.Message) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	s, ok := ss.sessions[key]
+	if !ok {
+		return
+	}
+
+	msgs := make([]providers.Message, len(history))
+	copy(msgs, history)
+	s.Messages = msgs
+	s.Updated = time.Now()
+}
+
 // Save persists the session to Oracle using MERGE INTO.
 func (ss *SessionStore) Save(key string) error {
 	ss.mu.RLock()
