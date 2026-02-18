@@ -51,7 +51,7 @@ services:
         required: false
 
   # ─────────────────────────────────────────────
-  # Oracle Database 23ai Free (optional)
+  # Oracle AI Database Free (optional)
   #   docker compose --profile oracle up oracle-db
   # ─────────────────────────────────────────────
   oracle-db:

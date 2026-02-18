@@ -1,4 +1,4 @@
-// PicOraclaw - Ultra-lightweight personal AI agent with Oracle Database 23ai
+// PicOraclaw - Ultra-lightweight personal AI agent with Oracle AI Database
 // Based on PicoClaw, inspired by nanobot: https://github.com/HKUDS/nanobot
 // License: MIT
 //
@@ -207,7 +207,7 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Printf("%s picooraclaw - Personal AI Assistant with Oracle DB 23ai v%s\n\n", logo, version)
+	fmt.Printf("%s picooraclaw - Personal AI Assistant with Oracle AI Database v%s\n\n", logo, version)
 	fmt.Println("Usage: picooraclaw <command>")
 	fmt.Println()
 	fmt.Println("Commands:")
@@ -426,7 +426,7 @@ func agentCmd() {
 			agentLoop = agent.NewAgentLoop(cfg, msgBus, provider)
 		} else {
 			defer oracleConn.Close()
-			fmt.Println("✓ Oracle Database 23ai storage enabled")
+			fmt.Println("✓ Oracle AI Database storage enabled")
 		}
 	} else {
 		agentLoop = agent.NewAgentLoop(cfg, msgBus, provider)
@@ -577,7 +577,7 @@ func gatewayCmd() {
 			agentLoop = agent.NewAgentLoop(cfg, msgBus, provider)
 		} else {
 			defer oracleConn.Close()
-			fmt.Println("✓ Oracle Database 23ai storage enabled")
+			fmt.Println("✓ Oracle AI Database storage enabled")
 		}
 	} else {
 		agentLoop = agent.NewAgentLoop(cfg, msgBus, provider)
@@ -1595,7 +1595,7 @@ func setupOracleCmd() {
 		fmt.Println("✓ Prompts seeded from workspace")
 	}
 
-	fmt.Println("\n🎉 Oracle setup complete! picooraclaw is ready to use Oracle Database 23ai.")
+	fmt.Println("\n🎉 Oracle setup complete! picooraclaw is ready to use Oracle AI Database.")
 }
 
 // initOracleAgent creates an agent loop with Oracle-backed stores.
@@ -1775,7 +1775,7 @@ func oracleInspectHelp() {
 func inspectOverview(db *sql.DB, agentID string) {
 	fmt.Println()
 	fmt.Println("=============================================================")
-	fmt.Println("  PicOraclaw Oracle Database Inspector")
+	fmt.Println("  PicOraclaw Oracle AI Database Inspector")
 	fmt.Println("=============================================================")
 	fmt.Println()
 

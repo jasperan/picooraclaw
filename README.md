@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo.jpg" alt="PicoClaw" width="512">
 
-  <h1>PicOraclaw: Ultra-Efficient AI Assistant in Go + Oracle Database 23ai</h1>
+  <h1>PicOraclaw: Ultra-Efficient AI Assistant in Go + Oracle AI Database</h1>
 
   <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search</h3>
 
@@ -19,7 +19,7 @@
 
 ---
 
-PicOraclaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle Database 23ai** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
+PicOraclaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
 
 ## Quickstart (5 minutes)
 
@@ -87,69 +87,36 @@ That's it — you have a working AI assistant with local inference. No API keys,
 
 Oracle gives you persistent storage, semantic memory (remember/recall by meaning), and crash-safe ACID transactions. Without it, storage is file-based.
 
-### Step 1: Start Oracle Database 23ai Free
+Run the setup script — it handles everything automatically:
 
 ```bash
-docker run -d --name oracle-free \
-  -p 1521:1521 \
-  -e ORACLE_PWD=YourPass123 \
-  -e ORACLE_CHARACTERSET=AL32UTF8 \
-  -v oracle-data:/opt/oracle/oradata \
-  container-registry.oracle.com/database/free:latest
+./scripts/setup-oracle.sh [optional-password]
 ```
 
-Wait ~2 minutes for first-time initialization:
-```bash
-docker logs -f oracle-free 2>&1 | grep "DATABASE IS READY"
+This single script:
+1. Pulls and starts the Oracle AI Database Free container
+2. Waits for the database to be ready
+3. Creates the `picooraclaw` database user with the required grants
+4. Patches your `~/.picooraclaw/config.json` with the Oracle connection settings
+5. Runs `picooraclaw setup-oracle` to initialize the schema and load the ONNX embedding model
+
+Expected output when complete:
 ```
-
-### Step 2: Create the database user
-
-```bash
-docker exec -it oracle-free sqlplus sys/YourPass123@localhost:1521/FREEPDB1 as sysdba
-```
-
-```sql
-CREATE USER picooraclaw IDENTIFIED BY YourPass123
-  DEFAULT TABLESPACE users QUOTA UNLIMITED ON users;
-GRANT CONNECT, RESOURCE, DB_DEVELOPER_ROLE TO picooraclaw;
-GRANT CREATE MINING MODEL TO picooraclaw;
-EXIT;
-```
-
-### Step 3: Enable Oracle in config
-
-Add the `oracle` section to `~/.picooraclaw/config.json`:
-
-```json
-{
-  "oracle": {
-    "enabled": true,
-    "mode": "freepdb",
-    "host": "localhost",
-    "port": 1521,
-    "service": "FREEPDB1",
-    "user": "picooraclaw",
-    "password": "YourPass123",
-    "onnxModel": "ALL_MINILM_L12_V2",
-    "agentId": "default"
-  }
-}
-```
-
-### Step 4: Initialize schema + ONNX embedding model
-
-```bash
-./build/picooraclaw setup-oracle
-```
-
-Expected output:
-```
-✓ Connected to Oracle Database
+── Step 4/4: Schema + ONNX model ─────────────────────────────────────────
+  Running picooraclaw setup-oracle...
+✓ Connected to Oracle AI Database
 ✓ Schema initialized (8 tables with PICO_ prefix)
 ✓ ONNX model 'ALL_MINILM_L12_V2' already loaded
 ✓ VECTOR_EMBEDDING() test passed
 ✓ Prompts seeded from workspace
+
+════════════════════════════════════════════════════════
+  Oracle AI Database setup complete!
+  Test with:
+    ./build/picooraclaw agent -m "Remember that I love Go"
+    ./build/picooraclaw agent -m "What language do I like?"
+    ./build/picooraclaw oracle-inspect
+════════════════════════════════════════════════════════
 ```
 
 ### Step 5: Test semantic memory
@@ -183,7 +150,7 @@ picooraclaw oracle-inspect [table] [options]
 
 ```
 =============================================================
-  PicOraclaw Oracle Database Inspector
+  PicOraclaw Oracle AI Database Inspector
 =============================================================
 
   Table                  Rows
@@ -205,6 +172,40 @@ picooraclaw oracle-inspect [table] [options]
   2026-02-16 06:13  0.7 [preference]  I prefer Python and Go for programming
   2026-02-16 06:12  0.7 [employment]  I work at Oracle as a developer
   2026-02-16 06:12  0.7 [preference]  my favorite color is blue
+
+  Recent Transcripts (last 5):
+  ─────────────────────────────────────────────────────────
+  (no transcripts yet)
+
+  Recent Sessions (last 5):
+  ─────────────────────────────────────────────────────────
+  2026-02-18 04:34  cli:default    **Cohesive Summary:** The user stored their
+  favorite color and employment details using the "remember" tool. When recalling,
+  the assistant retrieved stored memories via vector similarity, highlighting the
+  tool's role in storing and retrieving personal data across sessions.
+
+  Recent State Entries (last 5):
+  ─────────────────────────────────────────────────────────
+  (no state entries yet)
+
+  Recent Daily Notes (last 5):
+  ─────────────────────────────────────────────────────────
+  (no daily notes yet)
+
+  System Prompts (last 5):
+  ─────────────────────────────────────────────────────────
+  2026-02-18 04:05  AGENT                        357 chars
+  2026-02-18 04:05  USER                         365 chars
+  2026-02-18 04:05  SOUL                         296 chars
+  2026-02-18 04:05  IDENTITY                    1271 chars
+
+  Config Entries (last 5):
+  ─────────────────────────────────────────────────────────
+  (no config entries stored yet)
+
+  Schema Metadata:
+  ─────────────────────────────────────────────────────────
+  2026-02-18 04:05  schema_version                 = 1.0.0
 
   Tip: Run 'picooraclaw oracle-inspect <table>' for details
        Run 'picooraclaw oracle-inspect memories -s "query"' for semantic search
@@ -264,6 +265,13 @@ picooraclaw oracle-inspect [table] [options]
   Content: my favorite color is blue
 ```
 
+#### View a system prompt in full
+
+```bash
+./build/picooraclaw oracle-inspect prompts IDENTITY
+./build/picooraclaw oracle-inspect prompts SOUL
+```
+
 #### Schema metadata, ONNX models, and vector indexes
 
 ```bash
@@ -319,7 +327,7 @@ picooraclaw oracle-inspect config                         # Stored config entrie
 
 ```
                            ┌──────────────────────────────────────────┐
-                           │         Oracle Database 23ai             │
+                           │         Oracle AI Database               │
                            │                                          │
   picooraclaw binary       │  ┌──────────────┐  ┌──────────────────┐ │
   ┌───────────────────┐    │  │ PICO_MEMORIES │  │ PICO_DAILY_NOTES │ │
@@ -635,7 +643,7 @@ docker compose run --rm picoclaw-agent -m "What is 2+2?"
 
 - Single static binary (~10MB RAM), runs on RISC-V/ARM64/x86_64
 - Ollama, OpenRouter, Anthropic, OpenAI, Gemini, Zhipu, DeepSeek, Groq providers
-- Oracle Database 23ai with AI Vector Search (384-dim ONNX embeddings)
+- Oracle AI Database with AI Vector Search (384-dim ONNX embeddings)
 - Chat channels: Telegram, Discord, Slack, QQ, DingTalk, LINE, Feishu, WhatsApp
 - Scheduled tasks via cron expressions
 - Heartbeat periodic tasks

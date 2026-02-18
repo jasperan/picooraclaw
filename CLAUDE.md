@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PicOraclaw is an ultra-lightweight personal AI assistant written in Go, forked from PicoClaw. It extends PicoClaw with **Oracle Database 23ai** as an optional backend for persistent storage and semantic vector search. The binary is a single self-contained executable (~10MB RAM) targeting embedded Linux devices (RISC-V, ARM64, x86_64).
+PicOraclaw is an ultra-lightweight personal AI assistant written in Go, forked from PicoClaw. It extends PicoClaw with **Oracle AI Database** as an optional backend for persistent storage and semantic vector search. The binary is a single self-contained executable (~10MB RAM) targeting embedded Linux devices (RISC-V, ARM64, x86_64).
 
 Module path: `github.com/jasperan/picooraclaw`
 
@@ -49,7 +49,7 @@ The `build` target runs `go generate` first, which embeds `workspace/` files int
 | `providers` | LLM provider abstraction (`LLMProvider` interface). Implementations: OpenAI-compatible HTTP, Anthropic Claude, GitHub Copilot, Codex CLI |
 | `tools` | Tool interface + implementations (filesystem, shell, web search, edit, spawn/subagent, cron, remember/recall, message, I2C, SPI) |
 | `channels` | Chat platform adapters (Telegram, Discord, Slack, DingTalk, LINE, Feishu, QQ, WhatsApp, MaixCAM, OneBot) |
-| `oracle` | Oracle Database 23ai integration — connection pooling, schema init, embedding service (ONNX + API modes), Oracle-backed stores |
+| `oracle` | Oracle AI Database integration — connection pooling, schema init, embedding service (ONNX + API modes), Oracle-backed stores |
 | `config` | Config loading/saving from `~/.picooraclaw/config.json`, env var overrides |
 | `bus` | Internal message bus for inter-component communication |
 | `session` | File-based session/history manager |

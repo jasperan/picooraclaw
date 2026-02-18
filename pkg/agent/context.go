@@ -74,7 +74,7 @@ func (cb *ContextBuilder) getIdentity() string {
 
 	return fmt.Sprintf(`# picooraclaw 🦞
 
-You are picooraclaw, a helpful AI assistant with Oracle Database 23ai-powered memory.
+You are picooraclaw, a helpful AI assistant with Oracle AI Database-powered memory.
 
 ## Current Time
 %s
