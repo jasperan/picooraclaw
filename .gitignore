@@ -51,5 +51,8 @@ Thumbs.db
 # Design docs (local only)
 docs/plans/
 
+# Claude Code project instructions (local only)
+CLAUDE.md
+
 # goreleaser
 .env.example
