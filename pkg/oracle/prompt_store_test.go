@@ -69,7 +69,7 @@ func TestPromptStore_SavePrompt(t *testing.T) {
 	mock.ExpectExec("MERGE INTO PICO_PROMPTS").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = store.SavePrompt("IDENTITY", "You are PicOraclaw.")
+	err = store.SavePrompt("IDENTITY", "You are PicoOraClaw.")
 	if err != nil {
 		t.Fatalf("SavePrompt failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestPromptStore_LoadBootstrapFiles(t *testing.T) {
 	store := NewPromptStore(db, "test-agent")
 
 	rows := sqlmock.NewRows([]string{"prompt_name", "content"}).
-		AddRow("IDENTITY", "You are PicOraclaw.").
+		AddRow("IDENTITY", "You are PicoOraClaw.").
 		AddRow("SOUL", "Be helpful and kind.").
 		AddRow("USER", "User preferences here.")
 
@@ -100,7 +100,7 @@ func TestPromptStore_LoadBootstrapFiles(t *testing.T) {
 	if len(result) != 3 {
 		t.Fatalf("expected 3 prompts, got %d", len(result))
 	}
-	if result["IDENTITY"] != "You are PicOraclaw." {
+	if result["IDENTITY"] != "You are PicoOraClaw." {
 		t.Errorf("IDENTITY = %q", result["IDENTITY"])
 	}
 	if result["SOUL"] != "Be helpful and kind." {
@@ -122,7 +122,7 @@ func TestPromptStore_SeedFromWorkspace(t *testing.T) {
 
 	// Create temp workspace
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "IDENTITY.md"), []byte("I am PicOraclaw"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "IDENTITY.md"), []byte("I am PicoOraClaw"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "SOUL.md"), []byte("Be helpful"), 0644)
 
 	// Expect two SavePrompt calls (MERGE INTO)

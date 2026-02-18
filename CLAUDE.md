@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PicOraclaw is an ultra-lightweight personal AI assistant written in Go, forked from PicoClaw. It extends PicoClaw with **Oracle AI Database** as an optional backend for persistent storage and semantic vector search. The binary is a single self-contained executable (~10MB RAM) targeting embedded Linux devices (RISC-V, ARM64, x86_64).
+PicoOraClaw is an ultra-lightweight personal AI assistant written in Go, forked from PicoClaw. It extends PicoClaw with **Oracle AI Database** as an optional backend for persistent storage and semantic vector search. The binary is a single self-contained executable (~10MB RAM) targeting embedded Linux devices (RISC-V, ARM64, x86_64).
 
 Module path: `github.com/jasperan/picooraclaw`
 

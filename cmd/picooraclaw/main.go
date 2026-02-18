@@ -1,8 +1,8 @@
-// PicOraclaw - Ultra-lightweight personal AI agent with Oracle AI Database
+// PicoOraClaw - Ultra-lightweight personal AI agent with Oracle AI Database
 // Based on PicoClaw, inspired by nanobot: https://github.com/HKUDS/nanobot
 // License: MIT
 //
-// Copyright (c) 2026 PicOraclaw contributors
+// Copyright (c) 2026 PicoOraClaw contributors
 
 package main
 
@@ -358,7 +358,7 @@ func migrateCmd() {
 }
 
 func migrateHelp() {
-	fmt.Println("\nMigrate from OpenClaw/PicoClaw to PicOraclaw")
+	fmt.Println("\nMigrate from OpenClaw/PicoClaw to PicoOraClaw")
 	fmt.Println()
 	fmt.Println("Usage: picooraclaw migrate [options]")
 	fmt.Println()
@@ -369,7 +369,7 @@ func migrateHelp() {
 	fmt.Println("  --workspace-only   Only migrate workspace files, skip config")
 	fmt.Println("  --force            Skip confirmation prompts")
 	fmt.Println("  --openclaw-home    Override OpenClaw home directory (default: ~/.openclaw)")
-	fmt.Println("  --picoclaw-home    Override PicOraclaw home directory (default: ~/.picooraclaw)")
+	fmt.Println("  --picoclaw-home    Override PicoOraClaw home directory (default: ~/.picooraclaw)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  picooraclaw migrate              Detect and migrate from OpenClaw")
@@ -1776,7 +1776,7 @@ func oracleInspectHelp() {
 func inspectOverview(db *sql.DB, agentID string) {
 	fmt.Println()
 	fmt.Println("=============================================================")
-	fmt.Println("  PicOraclaw Oracle AI Database Inspector")
+	fmt.Println("  PicoOraClaw Oracle AI Database Inspector")
 	fmt.Println("=============================================================")
 	fmt.Println()
 

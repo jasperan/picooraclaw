@@ -150,7 +150,7 @@ picooraclaw oracle-inspect [table] [options]
 
 ```
 =============================================================
-  PicOraclaw Oracle AI Database Inspector
+  PicoOraClaw Oracle AI Database Inspector
 =============================================================
 
   Table                  Rows
@@ -432,7 +432,7 @@ Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
 
 ## Chat Channels
 
-Connect PicOraclaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu via the `gateway` command.
+Connect PicoOraClaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu via the `gateway` command.
 
 <details>
 <summary><b>Telegram</b> (Recommended)</summary>

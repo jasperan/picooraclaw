@@ -1,6 +1,6 @@
 services:
   # ─────────────────────────────────────────────
-  # PicOraclaw Agent (one-shot query)
+  # PicoOraClaw Agent (one-shot query)
   #   docker compose run --rm picooraclaw-agent -m "Hello"
   # ─────────────────────────────────────────────
   picooraclaw-agent:
@@ -26,7 +26,7 @@ services:
         required: false
 
   # ─────────────────────────────────────────────
-  # PicOraclaw Gateway (Long-running Bot)
+  # PicoOraClaw Gateway (Long-running Bot)
   #   docker compose up picooraclaw-gateway
   # ─────────────────────────────────────────────
   picooraclaw-gateway:
