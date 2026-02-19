@@ -168,17 +168,17 @@ type DevicesConfig struct {
 }
 
 type OracleDBConfig struct {
-	Enabled     bool   `json:"enabled" env:"PICO_ORACLE_ENABLED"`
-	Mode        string `json:"mode" env:"PICO_ORACLE_MODE"`                 // "freepdb" or "adb"
-	Host        string `json:"host" env:"PICO_ORACLE_HOST"`
-	Port        int    `json:"port" env:"PICO_ORACLE_PORT"`
-	Service     string `json:"service" env:"PICO_ORACLE_SERVICE"`
-	User        string `json:"user" env:"PICO_ORACLE_USER"`
-	Password    string `json:"password" env:"PICO_ORACLE_PASSWORD"`
-	DSN         string `json:"dsn" env:"PICO_ORACLE_DSN"`                   // ADB wallet-less TLS
-	WalletPath  string `json:"wallet_path" env:"PICO_ORACLE_WALLET_PATH"`   // ADB mTLS
-	PoolMaxOpen int    `json:"pool_max_open" env:"PICO_ORACLE_POOL_MAX_OPEN"`
-	PoolMaxIdle int    `json:"pool_max_idle" env:"PICO_ORACLE_POOL_MAX_IDLE"`
+	Enabled           bool   `json:"enabled" env:"PICO_ORACLE_ENABLED"`
+	Mode              string `json:"mode" env:"PICO_ORACLE_MODE"` // "freepdb" or "adb"
+	Host              string `json:"host" env:"PICO_ORACLE_HOST"`
+	Port              int    `json:"port" env:"PICO_ORACLE_PORT"`
+	Service           string `json:"service" env:"PICO_ORACLE_SERVICE"`
+	User              string `json:"user" env:"PICO_ORACLE_USER"`
+	Password          string `json:"password" env:"PICO_ORACLE_PASSWORD"`
+	DSN               string `json:"dsn" env:"PICO_ORACLE_DSN"`                 // ADB wallet-less TLS
+	WalletPath        string `json:"wallet_path" env:"PICO_ORACLE_WALLET_PATH"` // ADB mTLS
+	PoolMaxOpen       int    `json:"pool_max_open" env:"PICO_ORACLE_POOL_MAX_OPEN"`
+	PoolMaxIdle       int    `json:"pool_max_idle" env:"PICO_ORACLE_POOL_MAX_IDLE"`
 	ONNXModel         string `json:"onnx_model" env:"PICO_ORACLE_ONNX_MODEL"`
 	AgentID           string `json:"agent_id" env:"PICO_ORACLE_AGENT_ID"`
 	EmbeddingProvider string `json:"embedding_provider" env:"PICO_ORACLE_EMBEDDING_PROVIDER"` // "onnx" (in-database) or "api" (external REST)
@@ -381,17 +381,17 @@ func DefaultConfig() *Config {
 			MonitorUSB: true,
 		},
 		Oracle: OracleDBConfig{
-			Enabled:     false,
-			Mode:        "freepdb",
-			Host:        "localhost",
-			Port:        1521,
-			Service:     "FREEPDB1",
-			User:        "picooraclaw",
-			Password:    "",
-			DSN:         "",
-			WalletPath:  "",
-			PoolMaxOpen: 10,
-			PoolMaxIdle: 2,
+			Enabled:           false,
+			Mode:              "freepdb",
+			Host:              "localhost",
+			Port:              1521,
+			Service:           "FREEPDB1",
+			User:              "picooraclaw",
+			Password:          "",
+			DSN:               "",
+			WalletPath:        "",
+			PoolMaxOpen:       10,
+			PoolMaxIdle:       2,
 			ONNXModel:         "ALL_MINILM_L12_V2",
 			AgentID:           "default",
 			EmbeddingProvider: "api",

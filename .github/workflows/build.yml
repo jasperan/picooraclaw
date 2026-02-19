@@ -16,10 +16,18 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: fmt
+      - name: Check formatting
         run: |
           make fmt
           git diff --exit-code || (echo "::error::Code is not formatted. Run 'make fmt' and commit the changes." && exit 1)
 
-      - name: Build
+      - name: Vet
+        run: |
+          go generate ./...
+          go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build all platforms
         run: make build-all

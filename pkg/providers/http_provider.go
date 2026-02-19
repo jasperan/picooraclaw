@@ -379,7 +379,6 @@ func CreateProvider(cfg *config.Config) (LLMProvider, error) {
 				apiBase = "https://generativelanguage.googleapis.com/v1beta"
 			}
 
-		
 		case (strings.Contains(lowerModel, "groq") || strings.HasPrefix(model, "groq/")) && cfg.Providers.Groq.APIKey != "":
 			apiKey = cfg.Providers.Groq.APIKey
 			apiBase = cfg.Providers.Groq.APIBase

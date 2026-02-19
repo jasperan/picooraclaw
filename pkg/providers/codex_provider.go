@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jasperan/picooraclaw/pkg/auth"
+	"github.com/jasperan/picooraclaw/pkg/logger"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/responses"
-	"github.com/jasperan/picooraclaw/pkg/auth"
-	"github.com/jasperan/picooraclaw/pkg/logger"
 )
 
 const codexDefaultModel = "gpt-5.2"

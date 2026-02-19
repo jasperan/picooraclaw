@@ -2271,7 +2271,7 @@ func inspectTranscripts(db *sql.DB, agentID string, limit int) {
 		text := "(empty)"
 		if content.Valid {
 			text = content.String
-			}
+		}
 		seq := int64(0)
 		if seqNum.Valid {
 			seq = seqNum.Int64
@@ -2313,7 +2313,7 @@ func inspectState(db *sql.DB, agentID string) {
 		val := "(null)"
 		if value.Valid {
 			val = value.String
-			}
+		}
 		fmt.Printf("  %-30s = %-40s  (%s)\n", key, val, updated)
 	}
 	if !hasRows {
@@ -2353,7 +2353,7 @@ func inspectDailyNotes(db *sql.DB, agentID string, limit int) {
 		text := "(empty)"
 		if content.Valid {
 			text = content.String
-			}
+		}
 		fmt.Printf("\n  Date: %s  ID: %s  Vector: %s  Updated: %s\n", noteDay, noteID, hasVec, updated)
 		fmt.Printf("  Content: %s\n", text)
 	}
@@ -2463,7 +2463,7 @@ func inspectConfig(db *sql.DB, agentID string) {
 		val := "(null)"
 		if value.Valid {
 			val = value.String
-			}
+		}
 		fmt.Printf("  %-30s = %-40s  (%s)\n", key, val, updated)
 	}
 	if !hasRows {
