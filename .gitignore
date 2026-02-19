@@ -56,3 +56,4 @@ CLAUDE.md
 
 # goreleaser
 .env.example
+.serena/project.yml
