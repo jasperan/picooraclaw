@@ -236,57 +236,70 @@ picooraclaw oracle-inspect [table] [options]
 
   Table                  Rows
   ─────────────────────  ────
-  Memories                   4  ████
-  Sessions                   1  █
-  Transcripts                0  (empty)
-  State                      0  (empty)
-  Daily Notes                0  (empty)
+  Memories                  20  ████████████████████
+  Sessions                   4  ████
+  Transcripts                6  ██████
+  State                      8  ████████
+  Daily Notes                3  ███
   Prompts                    4  ████
-  Config                     0  (empty)
+  Config                     2  ██
   Meta                       1  █
   ─────────────────────  ────
-  Total                     10
+  Total                     48
 
   Recent Memories (last 5):
   ─────────────────────────────────────────────────────────
-  2026-02-18 02:20  0.7 [preference]  my favorite programming language is Go
-  2026-02-16 06:13  0.7 [preference]  I prefer Python and Go for programming
-  2026-02-16 06:12  0.7 [employment]  I work at Oracle as a developer
-  2026-02-16 06:12  0.7 [preference]  my favorite color is blue
+  2026-02-19 04:13  0.6 [preference]  Design docs and plan files go in docs/plans/ ...
+  2026-02-19 04:13  0.6 [interest]  User is interested in IoT and embedded systems ...
+  2026-02-19 04:13  0.7 [fact]  The Oracle ONNX embedding model used is ALL_MINILM_L12_V2 ...
+  2026-02-19 04:13  0.7 [preference]  For complex multi-step tasks, use multi-agent parallel ...
+  2026-02-19 04:13  0.8 [preference]  User prefers concise communication ...
 
   Recent Transcripts (last 5):
   ─────────────────────────────────────────────────────────
-  (no transcripts yet)
+  2026-02-19 04:13  assistant   [discord:dev-channel]  I've stored that in memory ...
+  2026-02-19 04:13  user        [discord:dev-channel]  Remember that the next release ...
+  2026-02-19 04:13  assistant   [telegram:user123]  Oracle Database connection is active ...
+  2026-02-19 04:13  user        [telegram:user123]  What's the status of the Oracle connection?
+  2026-02-19 04:13  assistant   [cli:repl-session]  I can help with that ...
 
   Recent Sessions (last 5):
   ─────────────────────────────────────────────────────────
-  2026-02-18 04:34  cli:default    **Cohesive Summary:** The user stored their
-  favorite color and employment details using the "remember" tool. When recalling,
-  the assistant retrieved stored memories via vector similarity, highlighting the
-  tool's role in storing and retrieving personal data across sessions.
+  2026-02-19 04:13  discord:dev-channel             (no summary)
+  2026-02-19 04:13  telegram:user123                (no summary)
+  2026-02-19 04:13  cli:repl-session                (no summary)
+  2026-02-18 06:07  cli:default                     **Cohesive Summary:** The user and
+  assistant engaged in a playful exchange starting with "Pong!" ...
 
   Recent State Entries (last 5):
   ─────────────────────────────────────────────────────────
-  (no state entries yet)
+  2026-02-19 04:13  total_conversations       = 42
+  2026-02-19 04:13  agent_mode                = interactive
+  2026-02-19 04:13  user_timezone             = America/Los_Angeles
+  2026-02-19 04:13  user_name                 = jasperan
+  2026-02-19 04:13  last_chat_id              = repl-session
 
   Recent Daily Notes (last 5):
   ─────────────────────────────────────────────────────────
-  (no daily notes yet)
+  2026-02-19  (updated 2026-02-19 04:13)  # 2026-02-19 ...
+  2026-02-18  (updated 2026-02-19 04:13)  # 2026-02-18 ...
+  2026-02-17  (updated 2026-02-19 04:13)  # 2026-02-17 ...
 
   System Prompts (last 5):
   ─────────────────────────────────────────────────────────
-  2026-02-18 04:05  AGENT                        357 chars
-  2026-02-18 04:05  USER                         365 chars
-  2026-02-18 04:05  SOUL                         296 chars
-  2026-02-18 04:05  IDENTITY                    1271 chars
+  2026-02-18 08:38  AGENT                      357 chars
+  2026-02-18 08:38  USER                       365 chars
+  2026-02-18 08:38  SOUL                       296 chars
+  2026-02-18 08:38  IDENTITY                  1271 chars
 
   Config Entries (last 5):
   ─────────────────────────────────────────────────────────
-  (no config entries stored yet)
+  2026-02-19 04:13  last_seed                 = 2026-02-19T04:13:34Z
+  2026-02-19 04:13  full_config               = { "llm": {...}, "oracle": {...}, ... }
 
   Schema Metadata:
   ─────────────────────────────────────────────────────────
-  2026-02-18 04:05  schema_version                 = 1.0.0
+  2026-02-18 08:38  schema_version                 = 1.0.0
 
   Tip: Run 'picooraclaw oracle-inspect <table>' for details
        Run 'picooraclaw oracle-inspect memories -s "query"' for semantic search
@@ -302,21 +315,31 @@ picooraclaw oracle-inspect [table] [options]
   All Memories
   ─────────────────────────────────────────────────────────
 
-  ID: 0e74a94c  Vector: yes
-  Created: 2026-02-18 02:20  Importance: 0.7  Category: preference  Accessed: 0x
-  Content: my favorite programming language is Go
+  ID: faffd019  Vector: yes
+  Created: 2026-02-19 04:13  Importance: 0.9  Category: preference  Accessed: 0x
+  Content: User prefers Oracle Database as the primary database. They work at Oracle
+  and prefer Oracle AI Vector Search for embeddings.
 
-  ID: 383ff5d3  Vector: yes
-  Created: 2026-02-16 06:13  Importance: 0.7  Category: preference  Accessed: 0x
-  Content: I prefer Python and Go for programming
+  ID: ecb8cf68  Vector: yes
+  Created: 2026-02-19 04:13  Importance: 0.9  Category: preference  Accessed: 0x
+  Content: IMPORTANT: Never include AI attribution (Co-Authored-By, Generated by
+  Claude, etc.) in git commit messages.
 
-  ID: 22b84dba  Vector: yes
-  Created: 2026-02-16 06:12  Importance: 0.7  Category: employment  Accessed: 1x
-  Content: I work at Oracle as a developer
+  ID: 0e39036f  Vector: yes
+  Created: 2026-02-19 04:13  Importance: 0.8  Category: preference  Accessed: 0x
+  Content: Go is the user's primary programming language. They use Go 1.24 and target
+  embedded Linux devices (RISC-V, ARM64, x86_64).
 
-  ID: e364704d  Vector: yes
-  Created: 2026-02-16 06:12  Importance: 0.7  Category: preference  Accessed: 1x
-  Content: my favorite color is blue
+  ID: 7aca4a7b  Vector: yes
+  Created: 2026-02-19 04:13  Importance: 0.8  Category: preference  Accessed: 0x
+  Content: User prefers Ollama as the open-source LLM framework for local inference.
+
+  ID: 27c2473c  Vector: yes
+  Created: 2026-02-19 04:13  Importance: 0.7  Category: interest  Accessed: 0x
+  Content: User is interested in RAG (Retrieval-Augmented Generation) using LlamaIndex
+  and LangChain frameworks.
+
+  ...
 ```
 
 #### Semantic search over memories
@@ -337,13 +360,128 @@ picooraclaw oracle-inspect [table] [options]
   Created: 2026-02-18 02:20  Importance: 0.7  Category: preference  Accessed: 0x
   Content: my favorite programming language is Go
 
+  [ 40.1% match]  ID: 0e39036f
+  Created: 2026-02-19 04:13  Importance: 0.8  Category: preference  Accessed: 0x
+  Content: Go is the user's primary programming language. They use Go 1.24 and target
+  embedded Linux devices (RISC-V, ARM64, x86_64).
+
   [ 30.9% match]  ID: 22b84dba
   Created: 2026-02-16 06:12  Importance: 0.7  Category: employment  Accessed: 1x
   Content: I work at Oracle as a developer
 
-  [ 16.3% match]  ID: e364704d
-  Created: 2026-02-16 06:12  Importance: 0.7  Category: preference  Accessed: 1x
-  Content: my favorite color is blue
+  ...
+```
+
+#### Inspect sessions
+
+```bash
+./build/picooraclaw oracle-inspect sessions
+```
+
+```
+  Chat Sessions
+  ─────────────────────────────────────────────────────────
+
+  Session: discord:dev-channel
+  Created: 2026-02-19 04:13  Updated: 2026-02-19 04:13  Messages size: 673 bytes
+
+  Session: telegram:user123
+  Created: 2026-02-19 04:13  Updated: 2026-02-19 04:13  Messages size: 304 bytes
+
+  Session: cli:repl-session
+  Created: 2026-02-19 04:13  Updated: 2026-02-19 04:13  Messages size: 982 bytes
+
+  Session: cli:default
+  Created: 2026-02-16 06:12  Updated: 2026-02-18 06:07  Messages size: 2848 bytes
+  Summary: **Cohesive Summary:** The user and assistant engaged in a playful
+  exchange starting with "Pong!" The assistant recalled the user's role as an
+  Oracle developer and their preference for Go ...
+```
+
+#### Inspect agent state
+
+```bash
+./build/picooraclaw oracle-inspect state
+```
+
+```
+  Agent State (Key-Value)
+  ─────────────────────────────────────────────────────────
+  agent_mode                     = interactive                    (2026-02-19 04:13)
+  last_channel                   = cli                            (2026-02-19 04:13)
+  last_chat_id                   = repl-session                   (2026-02-19 04:13)
+  last_model                     = gpt-4o-mini                    (2026-02-19 04:13)
+  tools_used_count               = 187                            (2026-02-19 04:13)
+  total_conversations            = 42                             (2026-02-19 04:13)
+  user_name                      = jasperan                       (2026-02-19 04:13)
+  user_timezone                  = America/Los_Angeles            (2026-02-19 04:13)
+```
+
+#### Inspect daily notes
+
+```bash
+./build/picooraclaw oracle-inspect notes
+```
+
+```
+  Daily Notes
+  ─────────────────────────────────────────────────────────
+
+  Date: 2026-02-19  ID: 2ccb7e70  Vector: yes  Updated: 2026-02-19 04:13
+  Content: # 2026-02-19
+  ## Development Progress
+  - Implemented seed-demo command for Oracle data population
+  - Tested vector embeddings with ALL_MINILM_L12_V2 model
+  - Fixed session serialization edge case with empty tool calls
+
+  Date: 2026-02-18  ID: 29a60563  Vector: yes  Updated: 2026-02-19 04:13
+  Content: # 2026-02-18
+  ## Testing & Debugging
+  - Ran full test suite: all 47 tests passing
+  - Profiled memory usage on RISC-V board: 8.2MB peak
+  - Verified Oracle connection pooling under concurrent load
+
+  Date: 2026-02-17  ID: f4cfb628  Vector: no  Updated: 2026-02-19 04:13
+  Content: # 2026-02-17
+  ## Architecture Planning
+  - Designed transcript storage schema for PICO_TRANSCRIPTS table
+  - Sketched WhatsApp channel adapter following existing Telegram pattern
+  - Reviewed LangChain-OracleDB integration for RAG pipeline
+```
+
+#### Inspect transcripts
+
+```bash
+./build/picooraclaw oracle-inspect transcripts
+```
+
+```
+  Conversation Transcripts
+  ─────────────────────────────────────────────────────────
+  2026-02-19 04:13  #2  assistant  [discord:dev-channel]   I've stored that in memory ...
+  2026-02-19 04:13  #1  user       [discord:dev-channel]   Remember that the next release ...
+  2026-02-19 04:13  #2  assistant  [telegram:user123]      Oracle Database connection is active ...
+  2026-02-19 04:13  #1  user       [telegram:user123]      What's the status of the Oracle connection?
+  2026-02-19 04:13  #2  assistant  [cli:repl-session]      I can help with that ...
+  2026-02-19 04:13  #1  user       [cli:repl-session]      Can you help me add a new tool ...
+```
+
+#### Inspect stored config
+
+```bash
+./build/picooraclaw oracle-inspect config
+```
+
+```
+  Stored Config
+  ─────────────────────────────────────────────────────────
+  full_config                    = {
+  "llm": {"provider": "openai-compatible", "model": "gpt-4o-mini", ...},
+  "oracle": {"enabled": true, "onnx_model": "ALL_MINILM_L12_V2"},
+  "channels": {"telegram": {"enabled": true}, "discord": {"enabled": true}},
+  "agent": {"max_tool_iterations": 10, "context_window": 8192}
+}  (2026-02-19 04:13)
+  last_seed                      = 2026-02-19T04:13:34Z       (2026-02-19 04:13)
 ```
 
 #### View a system prompt in full
@@ -374,17 +512,6 @@ picooraclaw oracle-inspect [table] [options]
   IDX_PICO_MEMORIES_VEC           on PICO_MEMORIES
 ```
 
-#### Other tables
-
-```bash
-picooraclaw oracle-inspect sessions                       # Chat sessions
-picooraclaw oracle-inspect transcripts -n 50              # Last 50 transcript lines
-picooraclaw oracle-inspect prompts                        # System prompts (IDENTITY, SOUL, etc.)
-picooraclaw oracle-inspect state                          # Agent key-value state
-picooraclaw oracle-inspect notes                          # Daily notes
-picooraclaw oracle-inspect config                         # Stored config entries
-```
-
 ---
 
 ## CLI Reference
@@ -399,6 +526,7 @@ picooraclaw oracle-inspect config                         # Stored config entrie
 | `picooraclaw setup-oracle` | Initialize Oracle schema + ONNX model |
 | `picooraclaw oracle-inspect` | Inspect data stored in Oracle |
 | `picooraclaw oracle-inspect memories -s "query"` | Semantic search over memories |
+| `picooraclaw seed-demo` | Populate Oracle with realistic demo data |
 | `picooraclaw cron list` | List scheduled jobs |
 | `picooraclaw skills list` | List installed skills |
 

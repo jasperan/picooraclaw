@@ -148,6 +148,8 @@ func main() {
 		setupOracleCmd()
 	case "oracle-inspect":
 		oracleInspectCmd()
+	case "seed-demo":
+		seedDemoCmd()
 	case "skills":
 		if len(os.Args) < 3 {
 			skillsHelp()
@@ -221,6 +223,7 @@ func printHelp() {
 	fmt.Println("  skills         Manage skills (install, list, remove)")
 	fmt.Println("  setup-oracle   Initialize Oracle Database schema and ONNX model")
 	fmt.Println("  oracle-inspect Inspect data stored in Oracle Database")
+	fmt.Println("  seed-demo      Populate Oracle with realistic demo data")
 	fmt.Println("  version        Show version information")
 }
 
