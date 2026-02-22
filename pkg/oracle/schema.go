@@ -57,10 +57,11 @@ var tableDDL = map[string]string{
     )`,
 
 	"PICO_CONFIG": `CREATE TABLE PICO_CONFIG (
-        config_key   VARCHAR2(255) PRIMARY KEY,
+        config_key   VARCHAR2(255) NOT NULL,
         agent_id     VARCHAR2(64) NOT NULL,
         config_value CLOB,
-        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (config_key, agent_id)
     )`,
 
 	"PICO_PROMPTS": `CREATE TABLE PICO_PROMPTS (

@@ -42,13 +42,13 @@ func (cs *ConfigStore) GetConfigValue(key string) (string, error) {
 func (cs *ConfigStore) SetConfigValue(key, value string) error {
 	_, err := cs.db.Exec(`
 		MERGE INTO PICO_CONFIG c
-		USING (SELECT :1 AS config_key FROM DUAL) src
-		ON (c.config_key = src.config_key)
+		USING (SELECT :1 AS config_key, :2 AS agent_id FROM DUAL) src
+		ON (c.config_key = src.config_key AND c.agent_id = src.agent_id)
 		WHEN MATCHED THEN
-			UPDATE SET config_value = :2, updated_at = CURRENT_TIMESTAMP
+			UPDATE SET config_value = :3, updated_at = CURRENT_TIMESTAMP
 		WHEN NOT MATCHED THEN
-			INSERT (config_key, agent_id, config_value) VALUES (:3, :4, :5)
-	`, key, value, key, cs.agentID, value)
+			INSERT (config_key, agent_id, config_value) VALUES (:4, :5, :6)
+	`, key, cs.agentID, value, key, cs.agentID, value)
 	if err != nil {
 		return fmt.Errorf("config set failed: %w", err)
 	}
