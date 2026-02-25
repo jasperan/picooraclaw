@@ -25,7 +25,7 @@
 
 ---
 
-PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
+PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
 
 <table align="center">
   <tr align="center">
