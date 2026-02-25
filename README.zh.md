@@ -16,7 +16,7 @@
 
 ---
 
-PicoOraClaw 是 [PicoClaw](https://github.com/sipeed/picoclaw) 的分支版本，新增了 **Oracle AI Database** 作为持久化存储和语义向量检索的后端。Agent 使用数据库内置 ONNX 嵌入模型，根据语义意义记忆和回忆信息 —— 无需外部嵌入 API。
+PicoOraClaw 是 [PicoClaw](https://github.com/jasperan/picooraclaw) 的分支版本，新增了 **Oracle AI Database** 作为持久化存储和语义向量检索的后端。Agent 使用数据库内置 ONNX 嵌入模型，根据语义意义记忆和回忆信息 —— 无需外部嵌入 API。
 
 注意：中文文档与英文文档可能略有滞后，请优先查看[英文文档](README.md)。
 
