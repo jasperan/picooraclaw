@@ -54,4 +54,4 @@ Discussions: https://github.com/jasperan/picooraclaw/discussions
 ---
 
 "Every bit helps, every bit matters."
-- Picoclaw
+- PicoOraClaw
