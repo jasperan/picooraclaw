@@ -16,7 +16,7 @@
 
 ---
 
-PicoOraClaw は [PicoClaw](https://github.com/sipeed/picoclaw) のフォークで、**Oracle AI Database** を永続ストレージとセマンティックベクトル検索のバックエンドとして追加しています。エージェントはインデータベース ONNX 埋め込みを使って意味的に記憶・想起します — 外部の埋め込み API は不要です。
+PicoOraClaw は [PicoClaw](https://github.com/jasperan/picooraclaw) のフォークで、**Oracle AI Database** を永続ストレージとセマンティックベクトル検索のバックエンドとして追加しています。エージェントはインデータベース ONNX 埋め込みを使って意味的に記憶・想起します — 外部の埋め込み API は不要です。
 
 <table align="center">
   <tr align="center">
