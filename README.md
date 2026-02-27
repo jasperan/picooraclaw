@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue?style=for-the-badge" alt="Hardware">
     <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
     <img src="https://img.shields.io/badge/backend-Ollama-black?style=for-the-badge" alt="Ollama">
-    <a href="https://www.oracle.com/database/free/"><img src="https://img.shields.io/badge/Oracle_Database-Free-F80000?style=for-the-badge&logo=oracle&logoColor=white" alt="Oracle Database"></a>
+    <a href="https://www.oracle.com/database/free/"><img src="https://img.shields.io/badge/Oracle_AI_Database-26ai_Free-F80000?style=for-the-badge&logo=oracle&logoColor=white" alt="Oracle AI Database 26ai Free"></a>
   </p>
 
   <p>
@@ -76,7 +76,7 @@ Set reminders, run recurring tasks, automate workflows — scheduled jobs are st
 
 ## Quickstart (5 minutes)
 
-Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for Oracle AI Database).
+Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/)).
 
 ### Step 1: Build
 
@@ -145,7 +145,7 @@ Deploy a fully configured PicoOraClaw instance on OCI with Oracle AI Database, O
 **What gets deployed:**
 - OCI Compute instance (shape of your choice, ARM A1.Flex is Always Free)
 - Ollama with `gemma3:270m` pre-loaded for CPU inference
-- Oracle AI Database (container by default, or managed Autonomous DB)
+- **Oracle AI Database 26ai Free** container by default (or optional Autonomous AI Database when toggled)
 - PicoOraClaw gateway running as a systemd service
 
 **After deployment (~5-8 min for setup to complete):**
@@ -174,7 +174,7 @@ Run the setup script — it handles everything automatically:
 ```
 
 This single script:
-1. Pulls and starts the Oracle AI Database Free container
+1. Pulls and starts the Oracle AI Database 26ai Free container
 2. Waits for the database to be ready
 3. Creates the `picooraclaw` database user with the required grants
 4. Patches your `~/.picooraclaw/config.json` with the Oracle connection settings
@@ -714,7 +714,7 @@ Run `picooraclaw gateway` after configuring.
 
 ---
 
-## Oracle on Autonomous Database (Cloud)
+## Oracle on Autonomous AI Database (Cloud, Optional)
 
 <details>
 <summary><b>ADB wallet-less TLS</b></summary>
@@ -855,12 +855,13 @@ docker compose run --rm picoclaw-agent -m "What is 2+2?"
 
 - Single static binary (~10MB RAM), runs on RISC-V/ARM64/x86_64
 - Ollama, OpenRouter, Anthropic, OpenAI, Gemini, Zhipu, DeepSeek, Groq providers
-- Oracle AI Database with AI Vector Search (384-dim ONNX embeddings)
+- **Default: [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/)** with AI Vector Search (384-dim ONNX embeddings)
 - Chat channels: Telegram, Discord, Slack, QQ, DingTalk, LINE, Feishu, WhatsApp
 - Scheduled tasks via cron expressions
 - Heartbeat periodic tasks
 - Skills system (workspace, global, GitHub-hosted)
 - Security sandbox with workspace restriction
+- Optional: [Oracle Autonomous AI Database](https://www.oracle.com/autonomous-database/) for managed cloud deployment
 - Graceful fallback to file-based storage when Oracle is unavailable
 
 ---
@@ -869,6 +870,6 @@ docker compose run --rm picoclaw-agent -m "What is 2+2?"
 
 [![GitHub](https://img.shields.io/badge/GitHub-jasperan-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jasperan)&nbsp;
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-jasperan-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jasperan/)&nbsp;
-[![Oracle](https://img.shields.io/badge/Oracle_Database-Free-F80000?style=for-the-badge&logo=oracle&logoColor=white)](https://www.oracle.com/database/free/)
+[![Oracle](https://img.shields.io/badge/Oracle_AI_Database-26ai_Free-F80000?style=for-the-badge&logo=oracle&logoColor=white)](https://www.oracle.com/database/free/)
 
 </div>

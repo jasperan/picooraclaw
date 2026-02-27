@@ -1,5 +1,5 @@
 title: "PicoOraClaw - AI Assistant on OCI"
-description: "Deploy PicoOraClaw with Ollama and Oracle AI Database on OCI"
+description: "Deploy PicoOraClaw with Ollama and Oracle AI Database 26ai Free on OCI"
 schemaVersion: 1.1.0
 version: "1.0.0"
 source:
@@ -84,8 +84,8 @@ variables:
 
   use_autonomous_db:
     type: boolean
-    title: "Use Autonomous Database"
-    description: "Use a managed Autonomous Database instead of Oracle DB Free container on the VM. ADB provides automatic backups and patching."
+    title: "Use Autonomous AI Database (optional)"
+    description: "Use a managed Autonomous AI Database instead of the default Oracle AI Database 26ai Free container on the VM. ADB provides automatic backups and patching."
     default: false
 
   adb_admin_password:

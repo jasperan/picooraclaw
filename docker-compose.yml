@@ -51,10 +51,12 @@ services:
         required: false
 
   # ─────────────────────────────────────────────
-  # Oracle AI Database Free (optional)
+  # Oracle AI Database 26ai Free (default backend)
+  # For managed cloud deployment, use the "Deploy to Oracle Cloud" button in README.
   #   docker compose --profile oracle up oracle-db
   # ─────────────────────────────────────────────
   oracle-db:
+    # Oracle AI Database 26ai Free — the default storage backend
     image: container-registry.oracle.com/database/free:latest
     container_name: picooraclaw-oracle
     profiles:

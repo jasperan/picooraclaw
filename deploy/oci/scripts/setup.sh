@@ -74,7 +74,7 @@ PYEOF
 echo "--- Setting up Oracle Database (mode: $ORACLE_MODE) ---"
 
 if [ "$ORACLE_MODE" = "freepdb" ]; then
-  # Pull and start Oracle DB Free container
+  # Pull and start Oracle AI Database 26ai Free container (default backend)
   docker pull container-registry.oracle.com/database/free:latest
   docker run -d --name oracle-free \
     -p 1521:1521 \
@@ -131,7 +131,7 @@ with open(path, "w") as f:
 PYEOF
 
 elif [ "$ORACLE_MODE" = "adb" ]; then
-  # ADB mode - wallet and DSN provided by Terraform
+  # Autonomous AI Database mode (optional cloud backend) - wallet and DSN provided by Terraform
   if [ -n "$ADB_WALLET_BASE64" ]; then
     WALLET_DIR="/home/opc/.picooraclaw/wallet"
     mkdir -p "$WALLET_DIR"
