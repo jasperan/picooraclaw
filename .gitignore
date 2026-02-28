@@ -57,3 +57,7 @@ CLAUDE.md
 # goreleaser
 .env.example
 .serena/project.yml
+
+# Python bytecode
+__pycache__/
+*.pyc
