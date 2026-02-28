@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """OCI GenAI local proxy -- OpenAI-compatible endpoint backed by OCI GenAI.
 
-Starts a local server that accepts standard OpenAI API calls and forwards
-them to OCI GenAI using OCI authentication from ~/.oci/config.
+Starts a threaded local server that accepts standard OpenAI API calls
+(including streaming) and forwards them to OCI GenAI using OCI
+authentication from ~/.oci/config.
 
 Prerequisites:
     pip install -r requirements.txt
@@ -23,49 +24,100 @@ import json
 import os
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 
 from oci_client import create_oci_client
 
 PROXY_PORT = int(os.getenv("OCI_PROXY_PORT", "9999"))
 
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle each request in a separate thread."""
+
+    daemon_threads = True
+
+
 class OCIProxyHandler(BaseHTTPRequestHandler):
     client = None
 
-    def do_POST(self):
-        if "/chat/completions" in self.path:
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(content_length))
-            try:
-                response = self.client.chat.completions.create(**body)
-                result = response.model_dump()
-                self._respond(200, result)
-            except Exception as e:
-                self._respond(
-                    500,
-                    {"error": {"message": str(e), "type": "oci_genai_error"}},
-                )
-        else:
-            self._respond(404, {"error": {"message": "Not found"}})
+    # ── CORS ────────────────────────────────────────────────────
+    def _cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Headers", "Content-Type, Authorization"
+        )
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors_headers()
+        self.end_headers()
+
+    # ── POST /v1/chat/completions ───────────────────────────────
+    def do_POST(self):
+        if "/chat/completions" not in self.path:
+            return self._json(404, {"error": {"message": "Not found"}})
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(content_length))
+        stream = body.get("stream", False)
+
+        try:
+            if stream:
+                self._handle_stream(body)
+            else:
+                response = self.client.chat.completions.create(**body)
+                self._json(200, response.model_dump())
+        except Exception as exc:
+            self._json(
+                500,
+                {"error": {"message": str(exc), "type": "oci_genai_error"}},
+            )
+
+    def _handle_stream(self, body):
+        """Forward a streaming chat-completion as Server-Sent Events."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self._cors_headers()
+        self.end_headers()
+        try:
+            for chunk in self.client.chat.completions.create(**body):
+                data = json.dumps(chunk.model_dump())
+                self.wfile.write(f"data: {data}\n\n".encode())
+                self.wfile.flush()
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except Exception as exc:
+            err = json.dumps(
+                {"error": {"message": str(exc), "type": "oci_genai_error"}}
+            )
+            self.wfile.write(f"data: {err}\n\n".encode())
+            self.wfile.flush()
+
+    # ── GET endpoints ───────────────────────────────────────────
     def do_GET(self):
         if "/models" in self.path:
-            self._respond(200, {"object": "list", "data": []})
+            self._json(200, {"object": "list", "data": []})
         elif "/health" in self.path:
-            self._respond(200, {"status": "ok"})
+            self._json(200, {"status": "ok"})
         else:
-            self._respond(404, {"error": {"message": "Not found"}})
+            self._json(404, {"error": {"message": "Not found"}})
 
-    def _respond(self, code, data):
+    # ── Helpers ─────────────────────────────────────────────────
+    def _json(self, code, data):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self._cors_headers()
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
-    def log_message(self, format, *args):
+    def log_message(self, fmt, *args):  # noqa: ARG002
         sys.stderr.write(f"[oci-proxy] {args[0]}\n")
 
 
+# ── Main ────────────────────────────────────────────────────────
 def main():
     if not os.getenv("OCI_COMPARTMENT_ID"):
         print("ERROR: OCI_COMPARTMENT_ID environment variable is required.")
@@ -75,7 +127,7 @@ def main():
     client = create_oci_client()
     OCIProxyHandler.client = client
 
-    server = HTTPServer(("0.0.0.0", PROXY_PORT), OCIProxyHandler)
+    server = ThreadedHTTPServer(("0.0.0.0", PROXY_PORT), OCIProxyHandler)
     print(f"OCI GenAI proxy listening on http://localhost:{PROXY_PORT}/v1")
     print(f"  Region:      {os.getenv('OCI_REGION', 'us-chicago-1')}")
     print(f"  Profile:     {os.getenv('OCI_PROFILE', 'DEFAULT')}")
