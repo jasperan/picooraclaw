@@ -10,6 +10,7 @@
     <img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue?style=for-the-badge" alt="Hardware">
     <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
     <img src="https://img.shields.io/badge/backend-Ollama-black?style=for-the-badge" alt="Ollama">
+    <a href="https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm"><img src="https://img.shields.io/badge/OCI-GenAI-F80000.svg?style=for-the-badge&logo=oracle&logoColor=white" alt="OCI GenAI"></a>
     <a href="https://www.oracle.com/database/free/"><img src="https://img.shields.io/badge/Oracle_AI_Database-26ai_Free-F80000?style=for-the-badge&logo=oracle&logoColor=white" alt="Oracle AI Database 26ai Free"></a>
   </p>
 
@@ -639,6 +640,60 @@ Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
 | `groq` | Fast inference + voice transcription | [console.groq.com](https://console.groq.com) |
 
 </details>
+
+## OCI Generative AI (Optional)
+
+PicoOraClaw can optionally use **OCI Generative AI** as an LLM backend via the `oci-openai` Python library. This is **not required** — Ollama remains the default and recommended LLM backend.
+
+### Why OCI GenAI?
+
+- **Enterprise models** — Access xAI Grok, Meta Llama, Cohere, and other models through OCI
+- **OCI-native auth** — Uses your existing `~/.oci/config` profile (no separate API keys)
+- **Same region as your database** — Run inference and storage in the same OCI region
+
+### Setup
+
+1. **Install the OCI GenAI proxy:**
+   ```bash
+   cd oci-genai
+   pip install -r requirements.txt
+   ```
+
+2. **Configure OCI credentials** (`~/.oci/config`):
+   ```ini
+   [DEFAULT]
+   user=ocid1.user.oc1..aaaaaaaaexample
+   fingerprint=aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99
+   tenancy=ocid1.tenancy.oc1..aaaaaaaaexample
+   region=us-chicago-1
+   key_file=~/.oci/oci_api_key.pem
+   ```
+
+3. **Set environment variables:**
+   ```bash
+   export OCI_PROFILE=DEFAULT
+   export OCI_REGION=us-chicago-1
+   export OCI_COMPARTMENT_ID=ocid1.compartment.oc1..your-compartment-ocid
+   ```
+
+4. **Start the OCI GenAI proxy:**
+   ```bash
+   cd oci-genai
+   python proxy.py
+   # Proxy runs at http://localhost:9999/v1
+   ```
+
+5. **Configure PicoOraClaw** (`~/.picooraclaw/config.json`):
+   ```json
+   {
+     "provider": "openai",
+     "api_base": "http://localhost:9999/v1",
+     "api_key": "oci-genai",
+     "model": "meta.llama-3.3-70b-instruct"
+   }
+   ```
+
+See [`oci-genai/README.md`](oci-genai/README.md) for full documentation.
 
 ---
 
