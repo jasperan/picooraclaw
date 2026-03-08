@@ -132,10 +132,16 @@ func (c *SlackChannel) Send(ctx context.Context, msg bus.OutboundMessage) error 
 
 	if ref, ok := c.pendingAcks.LoadAndDelete(msg.ChatID); ok {
 		msgRef := ref.(slackMessageRef)
-		c.api.AddReaction("white_check_mark", slack.ItemRef{
+		if err := c.api.AddReaction("white_check_mark", slack.ItemRef{
 			Channel:   msgRef.ChannelID,
 			Timestamp: msgRef.Timestamp,
-		})
+		}); err != nil {
+			logger.WarnCF("slack", "Failed to add check mark reaction", map[string]interface{}{
+				"error":      err.Error(),
+				"channel_id": msgRef.ChannelID,
+				"timestamp":  msgRef.Timestamp,
+			})
+		}
 	}
 
 	logger.DebugCF("slack", "Message sent", map[string]interface{}{
@@ -216,10 +222,16 @@ func (c *SlackChannel) handleMessageEvent(ev *slackevents.MessageEvent) {
 		chatID = channelID + "/" + threadTS
 	}
 
-	c.api.AddReaction("eyes", slack.ItemRef{
+	if err := c.api.AddReaction("eyes", slack.ItemRef{
 		Channel:   channelID,
 		Timestamp: messageTS,
-	})
+	}); err != nil {
+		logger.WarnCF("slack", "Failed to add eyes reaction", map[string]interface{}{
+			"error":      err.Error(),
+			"channel_id": channelID,
+			"timestamp":  messageTS,
+		})
+	}
 
 	c.pendingAcks.Store(chatID, slackMessageRef{
 		ChannelID: channelID,
@@ -308,10 +320,16 @@ func (c *SlackChannel) handleAppMention(ev *slackevents.AppMentionEvent) {
 		chatID = channelID + "/" + messageTS
 	}
 
-	c.api.AddReaction("eyes", slack.ItemRef{
+	if err := c.api.AddReaction("eyes", slack.ItemRef{
 		Channel:   channelID,
 		Timestamp: messageTS,
-	})
+	}); err != nil {
+		logger.WarnCF("slack", "Failed to add eyes reaction", map[string]interface{}{
+			"error":      err.Error(),
+			"channel_id": channelID,
+			"timestamp":  messageTS,
+		})
+	}
 
 	c.pendingAcks.Store(chatID, slackMessageRef{
 		ChannelID: channelID,

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/jasperan/picooraclaw/pkg/bus"
+	"github.com/jasperan/picooraclaw/pkg/logger"
 )
 
 type Channel interface {
@@ -18,11 +20,12 @@ type Channel interface {
 }
 
 type BaseChannel struct {
-	config    interface{}
-	bus       *bus.MessageBus
-	running   bool
-	name      string
-	allowList []string
+	config          interface{}
+	bus             *bus.MessageBus
+	running         bool
+	name            string
+	allowList       []string
+	allowListOnce   sync.Once
 }
 
 func NewBaseChannel(name string, config interface{}, bus *bus.MessageBus, allowList []string) *BaseChannel {
@@ -45,6 +48,11 @@ func (c *BaseChannel) IsRunning() bool {
 
 func (c *BaseChannel) IsAllowed(senderID string) bool {
 	if len(c.allowList) == 0 {
+		c.allowListOnce.Do(func() {
+			logger.WarnCF(c.name, "No allow_from configured for channel, all senders permitted. Consider adding allowed sender IDs to config.", map[string]interface{}{
+				"channel": c.name,
+			})
+		})
 		return true
 	}
 

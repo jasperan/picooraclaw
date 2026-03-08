@@ -211,20 +211,18 @@ func (sm *SessionManager) Save(key string) error {
 	}()
 
 	if _, err := tmpFile.Write(data); err != nil {
-		_ = tmpFile.Close()
+		tmpFile.Close()
 		return err
 	}
 	if err := tmpFile.Chmod(0644); err != nil {
-		_ = tmpFile.Close()
+		tmpFile.Close()
 		return err
 	}
 	if err := tmpFile.Sync(); err != nil {
-		_ = tmpFile.Close()
+		tmpFile.Close()
 		return err
 	}
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
+	tmpFile.Close()
 
 	if err := os.Rename(tmpPath, sessionPath); err != nil {
 		return err

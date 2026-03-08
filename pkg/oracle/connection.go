@@ -28,6 +28,7 @@ func NewConnectionManager(cfg *config.OracleDBConfig) (*ConnectionManager, error
 	db.SetMaxOpenConns(cfg.PoolMaxOpen)
 	db.SetMaxIdleConns(cfg.PoolMaxIdle)
 	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	cm := &ConnectionManager{
 		db:  db,

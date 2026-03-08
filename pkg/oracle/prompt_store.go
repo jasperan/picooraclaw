@@ -68,6 +68,10 @@ func (ps *PromptStore) LoadBootstrapFiles() map[string]string {
 		ps.agentID,
 	)
 	if err != nil {
+		logger.WarnCF("oracle", "Failed to load bootstrap prompts from Oracle", map[string]interface{}{
+			"agent_id": ps.agentID,
+			"error":    err.Error(),
+		})
 		return result
 	}
 	defer rows.Close()
