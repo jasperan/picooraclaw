@@ -214,7 +214,7 @@ func (sm *SessionManager) Save(key string) error {
 		tmpFile.Close()
 		return err
 	}
-	if err := tmpFile.Chmod(0644); err != nil {
+	if err := tmpFile.Chmod(0600); err != nil {
 		tmpFile.Close()
 		return err
 	}
@@ -222,7 +222,9 @@ func (sm *SessionManager) Save(key string) error {
 		tmpFile.Close()
 		return err
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
 
 	if err := os.Rename(tmpPath, sessionPath); err != nil {
 		return err

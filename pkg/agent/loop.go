@@ -516,7 +516,7 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				"model":             al.model,
 				"messages_count":    len(messages),
 				"tools_count":       len(providerToolDefs),
-				"max_tokens":        al.contextWindow,
+				"max_tokens":        8192,
 				"temperature":       0.7,
 				"system_prompt_len": len(messages[0].Content),
 			})
@@ -535,7 +535,7 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 		maxRetries := 3
 		for retry := 0; retry <= maxRetries; retry++ {
 			response, err = al.provider.Chat(ctx, messages, providerToolDefs, al.model, map[string]interface{}{
-				"max_tokens":  al.contextWindow,
+				"max_tokens":  8192,
 				"temperature": 0.7,
 			})
 
@@ -582,12 +582,14 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				case 1:
 					// Second retry: keep system prompt + last 25% of messages
 					if len(messages) > 4 {
-						keep := messages[:1] // system prompt
 						quarterIdx := len(messages) - len(messages)/4
 						if quarterIdx < 2 {
 							quarterIdx = 2
 						}
+						keep := make([]providers.Message, 0, 1+len(messages)-quarterIdx)
+						keep = append(keep, messages[0])
 						keep = append(keep, messages[quarterIdx:]...)
+
 						messages = keep
 						logger.InfoCF("agent", "Retry 1: kept system prompt + recent messages",
 							map[string]interface{}{"kept": len(keep)})
@@ -595,7 +597,8 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				case 2:
 					// Third retry: most aggressive - system prompt + last 2 messages
 					if len(messages) > 3 {
-						keep := messages[:1]
+						keep := make([]providers.Message, 0, 3)
+						keep = append(keep, messages[0])
 						keep = append(keep, messages[len(messages)-2:]...)
 						messages = keep
 						logger.InfoCF("agent", "Retry 2: kept system prompt + last 2 messages",

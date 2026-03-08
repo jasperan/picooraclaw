@@ -70,9 +70,12 @@ func NewExecTool(workingDir string, restrict bool) *ExecTool {
 		regexp.MustCompile(`\bruby\s+-e\b`),
 		regexp.MustCompile(`\bnode\s+-e\b`),
 		// Block network tools commonly used for reverse shells
-		regexp.MustCompile(`\bnc\s`),
+		regexp.MustCompile(`\bnc\b`),
 		regexp.MustCompile(`\bnetcat\b`),
 		regexp.MustCompile(`\bncat\b`),
+		// Block additional scripting languages that can bypass shell deny-list
+		regexp.MustCompile(`\blua\s+-e\b`),
+		regexp.MustCompile(`\bphp\s+-r\b`),
 		// Block access to sensitive system files
 		regexp.MustCompile(`/etc/shadow`),
 	}

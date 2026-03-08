@@ -417,8 +417,11 @@ func (ms *MemoryStore) deduplicateMemory(text string, importance float64) (strin
 	if err == nil {
 		// Exact match found - update importance if new one is higher
 		if importance > existingImportance {
-			ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
-				importance, existingID)
+			if _, execErr := ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
+				importance, existingID); execErr != nil {
+				logger.WarnCF("oracle", "Failed to update importance for duplicate memory", map[string]interface{}{
+					"memory_id": existingID, "error": execErr.Error()})
+			}
 		}
 		logger.InfoCF("oracle", "Duplicate memory detected, reusing existing", map[string]interface{}{
 			"memory_id": existingID,
@@ -439,8 +442,11 @@ func (ms *MemoryStore) deduplicateMemory(text string, importance float64) (strin
 		err := ms.db.QueryRow(sqlQuery, text, ms.agentID).Scan(&existingID, &existingImportance, &distance)
 		if err == nil && distance < 0.05 { // 95%+ similarity
 			if importance > existingImportance {
-				ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
-					importance, existingID)
+				if _, execErr := ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
+					importance, existingID); execErr != nil {
+					logger.WarnCF("oracle", "Failed to update importance for near-duplicate memory", map[string]interface{}{
+						"memory_id": existingID, "error": execErr.Error()})
+				}
 			}
 			logger.InfoCF("oracle", "Near-duplicate memory detected via embedding similarity", map[string]interface{}{
 				"memory_id": existingID,
