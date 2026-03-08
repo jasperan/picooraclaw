@@ -412,8 +412,12 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, opts processOptions) (str
 		}
 	}
 
-	// 1. Update tool contexts
-	al.updateToolContexts(opts.Channel, opts.ChatID)
+	// 1. Reset per-round send tracker on the message tool
+	if tool, ok := al.tools.Get("message"); ok {
+		if mt, ok := tool.(*tools.MessageTool); ok {
+			mt.ResetSentInRound()
+		}
+	}
 
 	// 2. Build messages (skip history for heartbeat)
 	var history []providers.Message
@@ -741,25 +745,6 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 	return finalContent, iteration, nil
 }
 
-// updateToolContexts updates the context for tools that need channel/chatID info.
-func (al *AgentLoop) updateToolContexts(channel, chatID string) {
-	// Use ContextualTool interface instead of type assertions
-	if tool, ok := al.tools.Get("message"); ok {
-		if mt, ok := tool.(tools.ContextualTool); ok {
-			mt.SetContext(channel, chatID)
-		}
-	}
-	if tool, ok := al.tools.Get("spawn"); ok {
-		if st, ok := tool.(tools.ContextualTool); ok {
-			st.SetContext(channel, chatID)
-		}
-	}
-	if tool, ok := al.tools.Get("subagent"); ok {
-		if st, ok := tool.(tools.ContextualTool); ok {
-			st.SetContext(channel, chatID)
-		}
-	}
-}
 
 // maybeSummarize triggers summarization if the session history exceeds thresholds.
 func (al *AgentLoop) maybeSummarize(sessionKey string) {

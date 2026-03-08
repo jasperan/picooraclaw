@@ -237,16 +237,12 @@ func (sm *SubagentManager) ListTasks() []*SubagentTask {
 // Unlike SpawnTool which runs tasks asynchronously, SubagentTool waits for completion
 // and returns the result directly in the ToolResult.
 type SubagentTool struct {
-	manager       *SubagentManager
-	originChannel string
-	originChatID  string
+	manager *SubagentManager
 }
 
 func NewSubagentTool(manager *SubagentManager) *SubagentTool {
 	return &SubagentTool{
-		manager:       manager,
-		originChannel: "cli",
-		originChatID:  "direct",
+		manager: manager,
 	}
 }
 
@@ -273,11 +269,6 @@ func (t *SubagentTool) Parameters() map[string]interface{} {
 		},
 		"required": []string{"task"},
 	}
-}
-
-func (t *SubagentTool) SetContext(channel, chatID string) {
-	t.originChannel = channel
-	t.originChatID = chatID
 }
 
 func (t *SubagentTool) Execute(ctx context.Context, args map[string]interface{}) *ToolResult {
@@ -318,6 +309,16 @@ func (t *SubagentTool) Execute(ctx context.Context, args map[string]interface{})
 		},
 	}
 
+	// Read channel/chatID from context
+	originChannel := ToolChannel(ctx)
+	originChatID := ToolChatID(ctx)
+	if originChannel == "" {
+		originChannel = "cli"
+	}
+	if originChatID == "" {
+		originChatID = "direct"
+	}
+
 	// Use RunToolLoop to execute with tools (same as async SpawnTool)
 	sm := t.manager
 	sm.mu.RLock()
@@ -334,7 +335,7 @@ func (t *SubagentTool) Execute(ctx context.Context, args map[string]interface{})
 			"max_tokens":  4096,
 			"temperature": 0.7,
 		},
-	}, messages, t.originChannel, t.originChatID)
+	}, messages, originChannel, originChatID)
 
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Subagent execution failed: %v", err)).WithError(err)

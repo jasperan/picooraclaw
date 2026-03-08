@@ -223,12 +223,16 @@ func TestToolContext_Updates(t *testing.T) {
 	provider := &simpleMockProvider{response: "OK"}
 	_ = NewAgentLoop(cfg, msgBus, provider)
 
-	// Verify that ContextualTool interface is defined and can be implemented
-	// This test validates the interface contract exists
-	ctxTool := &mockContextualTool{}
+	// Verify that context helpers work correctly
+	ctx := context.Background()
+	ctx = tools.WithToolContext(ctx, "telegram", "12345")
 
-	// Verify the tool implements the interface correctly
-	var _ tools.ContextualTool = ctxTool
+	if tools.ToolChannel(ctx) != "telegram" {
+		t.Errorf("Expected channel 'telegram', got %q", tools.ToolChannel(ctx))
+	}
+	if tools.ToolChatID(ctx) != "12345" {
+		t.Errorf("Expected chatID '12345', got %q", tools.ToolChatID(ctx))
+	}
 }
 
 // TestToolRegistry_GetDefinitions verifies tool definitions can be retrieved
@@ -393,36 +397,6 @@ func (m *mockCustomTool) Parameters() map[string]interface{} {
 
 func (m *mockCustomTool) Execute(ctx context.Context, args map[string]interface{}) *tools.ToolResult {
 	return tools.SilentResult("Custom tool executed")
-}
-
-// mockContextualTool tracks context updates
-type mockContextualTool struct {
-	lastChannel string
-	lastChatID  string
-}
-
-func (m *mockContextualTool) Name() string {
-	return "mock_contextual"
-}
-
-func (m *mockContextualTool) Description() string {
-	return "Mock contextual tool"
-}
-
-func (m *mockContextualTool) Parameters() map[string]interface{} {
-	return map[string]interface{}{
-		"type":       "object",
-		"properties": map[string]interface{}{},
-	}
-}
-
-func (m *mockContextualTool) Execute(ctx context.Context, args map[string]interface{}) *tools.ToolResult {
-	return tools.SilentResult("Contextual tool executed")
-}
-
-func (m *mockContextualTool) SetContext(channel, chatID string) {
-	m.lastChannel = channel
-	m.lastChatID = chatID
 }
 
 // testHelper executes a message and returns the response

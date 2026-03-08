@@ -120,7 +120,7 @@ func seedDemoCmd() {
 
 	// Session 1: CLI REPL coding assistance
 	sessionStore.AddMessage("cli:repl-session", "user", "Can you help me add a new tool to PicoOraClaw for monitoring I2C bus devices?")
-	sessionStore.AddMessage("cli:repl-session", "assistant", "I can help with that. The tool should implement the `tools.Tool` interface from `pkg/tools/base.go`. You'll need `Name()`, `Description()`, `Parameters()`, and `Execute()` methods. Since I2C requires hardware access, we should also implement `ContextualTool` for proper error handling. Want me to scaffold the implementation?")
+	sessionStore.AddMessage("cli:repl-session", "assistant", "I can help with that. The tool should implement the `tools.Tool` interface from `pkg/tools/base.go`. You'll need `Name()`, `Description()`, `Parameters()`, and `Execute()` methods. Since I2C requires hardware access, the tool can read channel/chatID from context via `tools.ToolChannel(ctx)` and `tools.ToolChatID(ctx)` for proper error handling. Want me to scaffold the implementation?")
 	sessionStore.AddMessage("cli:repl-session", "user", "Yes, please scaffold it. Make sure it works on RISC-V Linux.")
 	sessionStore.AddMessage("cli:repl-session", "assistant", "Here's the I2C bus scanner tool. It uses `/dev/i2c-*` device files which are available on RISC-V Linux. The tool scans for connected devices and returns their addresses:\n\n```go\ntype I2CScanTool struct{}\n\nfunc (t *I2CScanTool) Name() string { return \"i2c_scan\" }\n```\n\nI've kept the binary size minimal by using only the standard library's `os` and `syscall` packages. No CGO required.")
 

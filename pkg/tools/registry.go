@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -24,7 +25,12 @@ func NewToolRegistry() *ToolRegistry {
 func (r *ToolRegistry) Register(tool Tool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tools[tool.Name()] = tool
+	name := tool.Name()
+	if _, exists := r.tools[name]; exists {
+		logger.WarnCF("tools", "Tool registration overwrites existing tool",
+			map[string]interface{}{"name": name})
+	}
+	r.tools[name] = tool
 }
 
 func (r *ToolRegistry) Get(name string) (Tool, bool) {
@@ -39,8 +45,9 @@ func (r *ToolRegistry) Execute(ctx context.Context, name string, args map[string
 }
 
 // ExecuteWithContext executes a tool with channel/chatID context and optional async callback.
-// If the tool implements AsyncTool and a non-nil callback is provided,
-// the callback will be set on the tool before execution.
+// Channel and chatID are injected into ctx via WithToolContext so tools read them
+// via ToolChannel(ctx)/ToolChatID(ctx). If the tool implements AsyncExecutor and
+// a non-nil callback is provided, ExecuteAsync is used instead of Execute.
 func (r *ToolRegistry) ExecuteWithContext(ctx context.Context, name string, args map[string]interface{}, channel, chatID string, asyncCallback AsyncCallback) *ToolResult {
 	logger.InfoCF("tool", "Tool execution started",
 		map[string]interface{}{
@@ -57,22 +64,21 @@ func (r *ToolRegistry) ExecuteWithContext(ctx context.Context, name string, args
 		return ErrorResult(fmt.Sprintf("tool %q not found", name)).WithError(fmt.Errorf("tool not found"))
 	}
 
-	// If tool implements ContextualTool, set context
-	if contextualTool, ok := tool.(ContextualTool); ok && channel != "" && chatID != "" {
-		contextualTool.SetContext(channel, chatID)
-	}
+	// Inject channel/chatID into ctx so tools read them via ToolChannel(ctx)/ToolChatID(ctx).
+	ctx = WithToolContext(ctx, channel, chatID)
 
-	// If tool implements AsyncTool and callback is provided, set callback
-	if asyncTool, ok := tool.(AsyncTool); ok && asyncCallback != nil {
-		asyncTool.SetCallback(asyncCallback)
-		logger.DebugCF("tool", "Async callback injected",
+	// If tool implements AsyncExecutor and callback is provided, use ExecuteAsync.
+	var result *ToolResult
+	start := time.Now()
+	if asyncExec, ok := tool.(AsyncExecutor); ok && asyncCallback != nil {
+		logger.DebugCF("tool", "Executing async tool via ExecuteAsync",
 			map[string]interface{}{
 				"tool": name,
 			})
+		result = asyncExec.ExecuteAsync(ctx, args, asyncCallback)
+	} else {
+		result = tool.Execute(ctx, args)
 	}
-
-	start := time.Now()
-	result := tool.Execute(ctx, args)
 	duration := time.Since(start)
 
 	// Log based on result type
@@ -101,13 +107,23 @@ func (r *ToolRegistry) ExecuteWithContext(ctx context.Context, name string, args
 	return result
 }
 
+// sortedToolNames returns tool names in sorted order for deterministic iteration.
+func (r *ToolRegistry) sortedToolNames() []string {
+	names := make([]string, 0, len(r.tools))
+	for name := range r.tools {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func (r *ToolRegistry) GetDefinitions() []map[string]interface{} {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	definitions := make([]map[string]interface{}, 0, len(r.tools))
-	for _, tool := range r.tools {
-		definitions = append(definitions, ToolToSchema(tool))
+	for _, name := range r.sortedToolNames() {
+		definitions = append(definitions, ToolToSchema(r.tools[name]))
 	}
 	return definitions
 }
@@ -119,7 +135,8 @@ func (r *ToolRegistry) ToProviderDefs() []providers.ToolDefinition {
 	defer r.mu.RUnlock()
 
 	definitions := make([]providers.ToolDefinition, 0, len(r.tools))
-	for _, tool := range r.tools {
+	for _, toolName := range r.sortedToolNames() {
+		tool := r.tools[toolName]
 		schema := ToolToSchema(tool)
 
 		// Safely extract nested values with type checks
@@ -149,11 +166,7 @@ func (r *ToolRegistry) List() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	names := make([]string, 0, len(r.tools))
-	for name := range r.tools {
-		names = append(names, name)
-	}
-	return names
+	return r.sortedToolNames()
 }
 
 // Count returns the number of registered tools.
@@ -170,7 +183,8 @@ func (r *ToolRegistry) GetSummaries() []string {
 	defer r.mu.RUnlock()
 
 	summaries := make([]string, 0, len(r.tools))
-	for _, tool := range r.tools {
+	for _, name := range r.sortedToolNames() {
+		tool := r.tools[name]
 		summaries = append(summaries, fmt.Sprintf("- `%s` - %s", tool.Name(), tool.Description()))
 	}
 	return summaries

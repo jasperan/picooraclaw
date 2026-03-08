@@ -13,16 +13,8 @@ import (
 	"time"
 )
 
-type ExecTool struct {
-	workingDir          string
-	timeout             time.Duration
-	denyPatterns        []*regexp.Regexp
-	allowPatterns       []*regexp.Regexp
-	restrictToWorkspace bool
-}
-
-func NewExecTool(workingDir string, restrict bool) *ExecTool {
-	denyPatterns := []*regexp.Regexp{
+var (
+	defaultDenyPatterns = []*regexp.Regexp{
 		regexp.MustCompile(`\brm\s+-[rf]{1,2}\b`),
 		regexp.MustCompile(`\bdel\s+/[fq]\b`),
 		regexp.MustCompile(`\brmdir\s+/s\b`),
@@ -49,7 +41,7 @@ func NewExecTool(workingDir string, restrict bool) *ExecTool {
 		regexp.MustCompile(`\bchown\b`),
 		regexp.MustCompile(`\bpkill\b`),
 		regexp.MustCompile(`\bkillall\b`),
-		regexp.MustCompile(`\bkill\s+-[9]\b`),
+		regexp.MustCompile(`\bkill\b`),
 		regexp.MustCompile(`\bcurl\b.*\|\s*(sh|bash)`),
 		regexp.MustCompile(`\bwget\b.*\|\s*(sh|bash)`),
 		regexp.MustCompile(`\bnpm\s+install\s+-g\b`),
@@ -80,10 +72,32 @@ func NewExecTool(workingDir string, restrict bool) *ExecTool {
 		regexp.MustCompile(`/etc/shadow`),
 	}
 
+	absolutePathPattern = regexp.MustCompile(`[A-Za-z]:\\[^\\\"']+|/[^\s\"']+`)
+
+	safePaths = map[string]bool{
+		"/dev/null":    true,
+		"/dev/zero":    true,
+		"/dev/random":  true,
+		"/dev/urandom": true,
+		"/dev/stdin":   true,
+		"/dev/stdout":  true,
+		"/dev/stderr":  true,
+	}
+)
+
+type ExecTool struct {
+	workingDir          string
+	timeout             time.Duration
+	denyPatterns        []*regexp.Regexp
+	allowPatterns       []*regexp.Regexp
+	restrictToWorkspace bool
+}
+
+func NewExecTool(workingDir string, restrict bool) *ExecTool {
 	return &ExecTool{
 		workingDir:          workingDir,
 		timeout:             60 * time.Second,
-		denyPatterns:        denyPatterns,
+		denyPatterns:        defaultDenyPatterns,
 		allowPatterns:       nil,
 		restrictToWorkspace: restrict,
 	}
@@ -240,12 +254,16 @@ func (t *ExecTool) guardCommand(command, cwd string) string {
 			return ""
 		}
 
-		pathPattern := regexp.MustCompile(`[A-Za-z]:\\[^\\\"']+|/[^\s\"']+`)
-		matches := pathPattern.FindAllString(cmd, -1)
+		matches := absolutePathPattern.FindAllString(cmd, -1)
 
 		for _, raw := range matches {
 			p, err := filepath.Abs(raw)
 			if err != nil {
+				continue
+			}
+
+			// Skip known safe paths
+			if safePaths[p] {
 				continue
 			}
 
