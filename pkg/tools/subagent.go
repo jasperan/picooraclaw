@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -92,10 +94,36 @@ func (sm *SubagentManager) runTask(ctx context.Context, task *SubagentTask, call
 	task.Status = "running"
 	task.Created = time.Now().UnixMilli()
 
-	// Build system prompt for subagent
-	systemPrompt := `You are a subagent. Complete the given task independently and report the result.
-You have access to tools - use them as needed to complete your task.
-After completing the task, provide a clear summary of what was done.`
+	// Build system prompt for subagent with behavioral guidelines
+	agentName := "picooraclaw"
+
+	// Try to read identity from workspace for richer context
+	identitySnippet := ""
+	identityPath := filepath.Join(sm.workspace, "IDENTITY.md")
+	if data, err := os.ReadFile(identityPath); err == nil {
+		content := string(data)
+		if len(content) > 500 {
+			content = content[:500]
+		}
+		identitySnippet = "\n\n## Parent Agent Identity\n" + content
+	}
+
+	systemPrompt := fmt.Sprintf(`You are a subagent of %s, working on a delegated task.
+
+## Guidelines
+- Complete the given task independently using the tools available to you.
+- Be thorough but concise in your approach.
+- If a tool fails, try an alternative approach before giving up.
+- Stay focused on the specific task assigned.
+- Do not spawn additional subagents.
+
+## Output Format
+Provide a clear, structured summary of:
+1. What was done
+2. Key findings or results
+3. Any issues encountered
+
+After completing the task, provide your final summary.%s`, agentName, identitySnippet)
 
 	messages := []providers.Message{
 		{
@@ -264,11 +292,25 @@ func (t *SubagentTool) Execute(ctx context.Context, args map[string]interface{})
 		return ErrorResult("Subagent manager not configured").WithError(fmt.Errorf("manager is nil"))
 	}
 
-	// Build messages for subagent
+	// Build messages for subagent with richer context
+	subagentPrompt := "You are a subagent of picooraclaw, working on a delegated task. Complete the given task independently using available tools. Be thorough but concise. If a tool fails, try an alternative approach. Provide a clear, structured summary when done."
+
+	// Enrich with identity if available
+	if t.manager != nil {
+		identityPath := filepath.Join(t.manager.workspace, "IDENTITY.md")
+		if data, err := os.ReadFile(identityPath); err == nil {
+			content := string(data)
+			if len(content) > 500 {
+				content = content[:500]
+			}
+			subagentPrompt += "\n\n## Parent Agent Identity\n" + content
+		}
+	}
+
 	messages := []providers.Message{
 		{
 			Role:    "system",
-			Content: "You are a subagent. Complete the given task independently and provide a clear, concise result.",
+			Content: subagentPrompt,
 		},
 		{
 			Role:    "user",

@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jasperan/picooraclaw/pkg/bus"
 	"github.com/jasperan/picooraclaw/pkg/config"
@@ -46,133 +47,48 @@ func NewManager(cfg *config.Config, messageBus *bus.MessageBus) (*Manager, error
 func (m *Manager) initChannels() error {
 	logger.InfoC("channels", "Initializing channel manager")
 
-	if m.config.Channels.Telegram.Enabled && m.config.Channels.Telegram.Token != "" {
-		logger.DebugC("channels", "Attempting to initialize Telegram channel")
-		telegram, err := NewTelegramChannel(m.config.Channels.Telegram, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize Telegram channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["telegram"] = telegram
-			logger.InfoC("channels", "Telegram channel enabled successfully")
-		}
+	// Data-driven channel initialization to reduce code duplication
+	type channelEntry struct {
+		name    string
+		enabled bool
+		factory func() (Channel, error)
 	}
 
-	if m.config.Channels.WhatsApp.Enabled && m.config.Channels.WhatsApp.BridgeURL != "" {
-		logger.DebugC("channels", "Attempting to initialize WhatsApp channel")
-		whatsapp, err := NewWhatsAppChannel(m.config.Channels.WhatsApp, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize WhatsApp channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["whatsapp"] = whatsapp
-			logger.InfoC("channels", "WhatsApp channel enabled successfully")
-		}
+	entries := []channelEntry{
+		{"telegram", m.config.Channels.Telegram.Enabled && m.config.Channels.Telegram.Token != "",
+			func() (Channel, error) { return NewTelegramChannel(m.config.Channels.Telegram, m.bus) }},
+		{"whatsapp", m.config.Channels.WhatsApp.Enabled && m.config.Channels.WhatsApp.BridgeURL != "",
+			func() (Channel, error) { return NewWhatsAppChannel(m.config.Channels.WhatsApp, m.bus) }},
+		{"feishu", m.config.Channels.Feishu.Enabled,
+			func() (Channel, error) { return NewFeishuChannel(m.config.Channels.Feishu, m.bus) }},
+		{"discord", m.config.Channels.Discord.Enabled && m.config.Channels.Discord.Token != "",
+			func() (Channel, error) { return NewDiscordChannel(m.config.Channels.Discord, m.bus) }},
+		{"maixcam", m.config.Channels.MaixCam.Enabled,
+			func() (Channel, error) { return NewMaixCamChannel(m.config.Channels.MaixCam, m.bus) }},
+		{"qq", m.config.Channels.QQ.Enabled,
+			func() (Channel, error) { return NewQQChannel(m.config.Channels.QQ, m.bus) }},
+		{"dingtalk", m.config.Channels.DingTalk.Enabled && m.config.Channels.DingTalk.ClientID != "",
+			func() (Channel, error) { return NewDingTalkChannel(m.config.Channels.DingTalk, m.bus) }},
+		{"slack", m.config.Channels.Slack.Enabled && m.config.Channels.Slack.BotToken != "",
+			func() (Channel, error) { return NewSlackChannel(m.config.Channels.Slack, m.bus) }},
+		{"line", m.config.Channels.LINE.Enabled && m.config.Channels.LINE.ChannelAccessToken != "",
+			func() (Channel, error) { return NewLINEChannel(m.config.Channels.LINE, m.bus) }},
+		{"onebot", m.config.Channels.OneBot.Enabled && m.config.Channels.OneBot.WSUrl != "",
+			func() (Channel, error) { return NewOneBotChannel(m.config.Channels.OneBot, m.bus) }},
 	}
 
-	if m.config.Channels.Feishu.Enabled {
-		logger.DebugC("channels", "Attempting to initialize Feishu channel")
-		feishu, err := NewFeishuChannel(m.config.Channels.Feishu, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize Feishu channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["feishu"] = feishu
-			logger.InfoC("channels", "Feishu channel enabled successfully")
+	for _, entry := range entries {
+		if !entry.enabled {
+			continue
 		}
-	}
-
-	if m.config.Channels.Discord.Enabled && m.config.Channels.Discord.Token != "" {
-		logger.DebugC("channels", "Attempting to initialize Discord channel")
-		discord, err := NewDiscordChannel(m.config.Channels.Discord, m.bus)
+		logger.DebugCF("channels", fmt.Sprintf("Attempting to initialize %s channel", entry.name), nil)
+		ch, err := entry.factory()
 		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize Discord channel", map[string]interface{}{
-				"error": err.Error(),
-			})
+			logger.ErrorCF("channels", fmt.Sprintf("Failed to initialize %s channel", entry.name),
+				map[string]interface{}{"error": err.Error()})
 		} else {
-			m.channels["discord"] = discord
-			logger.InfoC("channels", "Discord channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.MaixCam.Enabled {
-		logger.DebugC("channels", "Attempting to initialize MaixCam channel")
-		maixcam, err := NewMaixCamChannel(m.config.Channels.MaixCam, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize MaixCam channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["maixcam"] = maixcam
-			logger.InfoC("channels", "MaixCam channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.QQ.Enabled {
-		logger.DebugC("channels", "Attempting to initialize QQ channel")
-		qq, err := NewQQChannel(m.config.Channels.QQ, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize QQ channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["qq"] = qq
-			logger.InfoC("channels", "QQ channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.DingTalk.Enabled && m.config.Channels.DingTalk.ClientID != "" {
-		logger.DebugC("channels", "Attempting to initialize DingTalk channel")
-		dingtalk, err := NewDingTalkChannel(m.config.Channels.DingTalk, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize DingTalk channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["dingtalk"] = dingtalk
-			logger.InfoC("channels", "DingTalk channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.Slack.Enabled && m.config.Channels.Slack.BotToken != "" {
-		logger.DebugC("channels", "Attempting to initialize Slack channel")
-		slackCh, err := NewSlackChannel(m.config.Channels.Slack, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize Slack channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["slack"] = slackCh
-			logger.InfoC("channels", "Slack channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.LINE.Enabled && m.config.Channels.LINE.ChannelAccessToken != "" {
-		logger.DebugC("channels", "Attempting to initialize LINE channel")
-		line, err := NewLINEChannel(m.config.Channels.LINE, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize LINE channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["line"] = line
-			logger.InfoC("channels", "LINE channel enabled successfully")
-		}
-	}
-
-	if m.config.Channels.OneBot.Enabled && m.config.Channels.OneBot.WSUrl != "" {
-		logger.DebugC("channels", "Attempting to initialize OneBot channel")
-		onebot, err := NewOneBotChannel(m.config.Channels.OneBot, m.bus)
-		if err != nil {
-			logger.ErrorCF("channels", "Failed to initialize OneBot channel", map[string]interface{}{
-				"error": err.Error(),
-			})
-		} else {
-			m.channels["onebot"] = onebot
-			logger.InfoC("channels", "OneBot channel enabled successfully")
+			m.channels[entry.name] = ch
+			logger.InfoCF("channels", fmt.Sprintf("%s channel enabled successfully", entry.name), nil)
 		}
 	}
 
@@ -272,12 +188,15 @@ func (m *Manager) dispatchOutbound(ctx context.Context) {
 				continue
 			}
 
-			if err := channel.Send(ctx, msg); err != nil {
+			// Send with a 30-second timeout to prevent one slow channel from blocking dispatch
+			sendCtx, sendCancel := context.WithTimeout(ctx, 30*time.Second)
+			if err := channel.Send(sendCtx, msg); err != nil {
 				logger.ErrorCF("channels", "Error sending message to channel", map[string]interface{}{
 					"channel": msg.Channel,
 					"error":   err.Error(),
 				})
 			}
+			sendCancel()
 		}
 	}
 }

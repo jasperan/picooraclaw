@@ -140,8 +140,19 @@ func (cb *ContextBuilder) BuildSystemPrompt() string {
 	}
 
 	// Skills - show summary, AI can read full content with read_file tool
+	// Cull oversized skills sections to prevent system prompt bloat
 	skillsSummary := cb.skillsLoader.BuildSkillsSummary()
 	if skillsSummary != "" {
+		if len(skillsSummary) > 8192 {
+			logger.WarnCF("agent", "Skills summary exceeds 8KB, truncating to skill names only",
+				map[string]interface{}{"original_size": len(skillsSummary)})
+			allSkills := cb.skillsLoader.ListSkills()
+			var names []string
+			for _, s := range allSkills {
+				names = append(names, s.Name)
+			}
+			skillsSummary = "Available skills (use read_file to see details): " + strings.Join(names, ", ")
+		}
 		parts = append(parts, fmt.Sprintf(`# Skills
 
 The following skills extend your capabilities. To use a skill, read its SKILL.md file using the read_file tool.

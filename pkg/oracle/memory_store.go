@@ -33,6 +33,12 @@ func NewMemoryStore(db *sql.DB, agentID string, embedding *EmbeddingService) *Me
 	if embedding != nil {
 		modelName = embedding.ModelName()
 	}
+	if modelName != "" {
+		if err := validateSQLIdentifier(modelName); err != nil {
+			logger.WarnCF("oracle", "Invalid model name for MemoryStore, disabling embedding SQL", map[string]interface{}{"error": err.Error(), "modelName": modelName})
+			modelName = ""
+		}
+	}
 	return &MemoryStore{
 		db:        db,
 		agentID:   agentID,
@@ -43,8 +49,9 @@ func NewMemoryStore(db *sql.DB, agentID string, embedding *EmbeddingService) *Me
 
 // ReadLongTerm reads all long-term memories, joined with "---" separator.
 func (ms *MemoryStore) ReadLongTerm() string {
+	// Order by importance with time-decay: recently accessed memories rank higher
 	rows, err := ms.db.Query(
-		"SELECT content FROM PICO_MEMORIES WHERE agent_id = :1 ORDER BY importance DESC, created_at DESC",
+		"SELECT content FROM PICO_MEMORIES WHERE agent_id = :1 ORDER BY (importance * (1.0 / (1.0 + (SYSDATE - NVL(accessed_at, created_at)) * 0.1))) DESC, created_at DESC FETCH FIRST 50 ROWS ONLY",
 		ms.agentID,
 	)
 	if err != nil {
@@ -143,6 +150,7 @@ func (ms *MemoryStore) GetRecentDailyNotes(days int) string {
 		ms.agentID, days,
 	)
 	if err != nil {
+		logger.WarnCF("oracle", "Failed to read recent daily notes", map[string]interface{}{"error": err.Error()})
 		return ""
 	}
 	defer rows.Close()
@@ -159,14 +167,14 @@ func (ms *MemoryStore) GetRecentDailyNotes(days int) string {
 		return ""
 	}
 
-	var result string
+	var sb strings.Builder
 	for i, note := range notes {
 		if i > 0 {
-			result += "\n\n---\n\n"
+			sb.WriteString("\n\n---\n\n")
 		}
-		result += note
+		sb.WriteString(note)
 	}
-	return result
+	return sb.String()
 }
 
 // GetMemoryContext returns formatted memory context for the agent prompt.
@@ -187,19 +195,25 @@ func (ms *MemoryStore) GetMemoryContext() string {
 		return ""
 	}
 
-	var result string
+	var sb strings.Builder
 	for i, part := range parts {
 		if i > 0 {
-			result += "\n\n---\n\n"
+			sb.WriteString("\n\n---\n\n")
 		}
-		result += part
+		sb.WriteString(part)
 	}
-	return fmt.Sprintf("# Memory\n\n%s", result)
+	return fmt.Sprintf("# Memory\n\n%s", sb.String())
 }
 
 // Remember stores a new memory with embedding for vector search.
 // Uses Oracle's in-database VECTOR_EMBEDDING() to compute the embedding inline.
+// Checks for near-duplicate memories before inserting to prevent clutter.
 func (ms *MemoryStore) Remember(text string, importance float64, category string) (string, error) {
+	// Check for near-duplicate memories before inserting
+	if existingID, updated := ms.deduplicateMemory(text, importance); updated {
+		return existingID, nil
+	}
+
 	memoryID := uuid.New().String()[:8]
 
 	if ms.modelName != "" && ms.embedding != nil && ms.embedding.Mode() == "onnx" {
@@ -356,19 +370,85 @@ func float32SliceToString(v []float32) string {
 	if len(v) == 0 {
 		return "[]"
 	}
-	parts := make([]string, len(v))
+	var sb strings.Builder
+	sb.Grow(len(v)*8 + 2) // pre-allocate roughly
+	sb.WriteByte('[')
 	for i, f := range v {
-		parts[i] = fmt.Sprintf("%g", f)
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		fmt.Fprintf(&sb, "%g", f)
 	}
-	return "[" + strings.Join(parts, ",") + "]"
+	sb.WriteByte(']')
+	return sb.String()
 }
 
-// updateAccessTimestamps updates access_count and accessed_at for recalled memories.
+// updateAccessTimestamps updates access_count and accessed_at for recalled memories
+// using a single batch UPDATE to avoid N+1 query overhead.
 func (ms *MemoryStore) updateAccessTimestamps(memoryIDs []string) {
-	for _, id := range memoryIDs {
-		ms.db.Exec(
-			"UPDATE PICO_MEMORIES SET accessed_at = CURRENT_TIMESTAMP, access_count = access_count + 1 WHERE memory_id = :1",
-			id,
-		)
+	if len(memoryIDs) == 0 {
+		return
 	}
+	placeholders := make([]string, len(memoryIDs))
+	args := make([]interface{}, len(memoryIDs))
+	for i, id := range memoryIDs {
+		placeholders[i] = fmt.Sprintf(":%d", i+1)
+		args[i] = id
+	}
+	query := fmt.Sprintf(
+		"UPDATE PICO_MEMORIES SET accessed_at = CURRENT_TIMESTAMP, access_count = access_count + 1 WHERE memory_id IN (%s)",
+		strings.Join(placeholders, ", "),
+	)
+	if _, err := ms.db.Exec(query, args...); err != nil {
+		logger.WarnCF("oracle", "Failed to update access timestamps", map[string]interface{}{"error": err.Error()})
+	}
+}
+
+// deduplicateMemory checks for near-duplicate memories before inserting.
+// Returns (existingID, true) if a duplicate was found and updated, or ("", false) if no duplicate.
+func (ms *MemoryStore) deduplicateMemory(text string, importance float64) (string, bool) {
+	// Try exact text match first (cheap)
+	var existingID string
+	var existingImportance float64
+	err := ms.db.QueryRow(
+		"SELECT memory_id, importance FROM PICO_MEMORIES WHERE agent_id = :1 AND content = :2 FETCH FIRST 1 ROW ONLY",
+		ms.agentID, text,
+	).Scan(&existingID, &existingImportance)
+	if err == nil {
+		// Exact match found - update importance if new one is higher
+		if importance > existingImportance {
+			ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
+				importance, existingID)
+		}
+		logger.InfoCF("oracle", "Duplicate memory detected, reusing existing", map[string]interface{}{
+			"memory_id": existingID,
+		})
+		return existingID, true
+	}
+
+	// Try semantic deduplication via vector similarity if ONNX is available
+	if ms.modelName != "" && ms.embedding != nil && ms.embedding.Mode() == "onnx" {
+		sqlQuery := fmt.Sprintf(`
+			SELECT memory_id, importance,
+			       VECTOR_DISTANCE(embedding, VECTOR_EMBEDDING(%s USING :1 AS DATA), COSINE) AS distance
+			FROM PICO_MEMORIES
+			WHERE agent_id = :2 AND embedding IS NOT NULL
+			ORDER BY distance ASC
+			FETCH FIRST 1 ROW ONLY`, ms.modelName)
+		var distance float64
+		err := ms.db.QueryRow(sqlQuery, text, ms.agentID).Scan(&existingID, &existingImportance, &distance)
+		if err == nil && distance < 0.05 { // 95%+ similarity
+			if importance > existingImportance {
+				ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
+					importance, existingID)
+			}
+			logger.InfoCF("oracle", "Near-duplicate memory detected via embedding similarity", map[string]interface{}{
+				"memory_id": existingID,
+				"distance":  distance,
+			})
+			return existingID, true
+		}
+	}
+
+	return "", false
 }

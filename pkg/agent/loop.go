@@ -484,6 +484,13 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 	iteration := 0
 	var finalContent string
 
+	// Track recent tool calls to detect infinite loops (M5)
+	type toolCallKey struct {
+		Name string
+		Args string
+	}
+	recentToolCalls := make(map[toolCallKey]int)
+
 	for iteration < al.maxIterations {
 		iteration++
 
@@ -492,6 +499,12 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				"iteration": iteration,
 				"max":       al.maxIterations,
 			})
+
+		// Warn when approaching iteration limit
+		if iteration >= al.maxIterations*80/100 {
+			logger.WarnCF("agent", "Approaching max iterations limit",
+				map[string]interface{}{"iteration": iteration, "max": al.maxIterations})
+		}
 
 		// Build tool definitions
 		providerToolDefs := al.tools.ToProviderDefs()
@@ -503,7 +516,7 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				"model":             al.model,
 				"messages_count":    len(messages),
 				"tools_count":       len(providerToolDefs),
-				"max_tokens":        8192,
+				"max_tokens":        al.contextWindow,
 				"temperature":       0.7,
 				"system_prompt_len": len(messages[0].Content),
 			})
@@ -516,13 +529,13 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				"tools_json":    formatToolsForLog(providerToolDefs),
 			})
 
-		// Call LLM with retry on context/token errors
+		// Call LLM with retry on context/token errors, rate limits, and transient failures
 		var response *providers.LLMResponse
 		var err error
-		maxRetries := 2
+		maxRetries := 3
 		for retry := 0; retry <= maxRetries; retry++ {
 			response, err = al.provider.Chat(ctx, messages, providerToolDefs, al.model, map[string]interface{}{
-				"max_tokens":  8192,
+				"max_tokens":  al.contextWindow,
 				"temperature": 0.7,
 			})
 
@@ -535,16 +548,59 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 				strings.Contains(errMsg, "context") ||
 				strings.Contains(errMsg, "invalidparameter") ||
 				strings.Contains(errMsg, "length")
+			isRateLimit := strings.Contains(errMsg, "429") || strings.Contains(errMsg, "rate") || strings.Contains(errMsg, "quota")
+			isTransient := strings.Contains(errMsg, "502") || strings.Contains(errMsg, "503") || strings.Contains(errMsg, "timeout")
+
+			if isRateLimit && retry < maxRetries {
+				backoff := time.Duration(1<<uint(retry)) * 5 * time.Second
+				logger.WarnCF("agent", "Rate limited, backing off",
+					map[string]interface{}{"backoff": backoff.String(), "retry": retry})
+				time.Sleep(backoff)
+				continue
+			}
+			if isTransient && retry < maxRetries {
+				backoff := time.Duration(1<<uint(retry)) * 2 * time.Second
+				logger.WarnCF("agent", "Transient error, retrying",
+					map[string]interface{}{"backoff": backoff.String(), "retry": retry})
+				time.Sleep(backoff)
+				continue
+			}
 
 			if isContextError && retry < maxRetries {
 				logger.WarnCF("agent", "Context window error, compressing history",
 					map[string]interface{}{"error": err.Error(), "retry": retry})
-				// Drop oldest half of messages (keep system prompt and last message)
-				if len(messages) > 4 {
-					keep := messages[:1] // system prompt
-					mid := 1 + (len(messages)-1)/2
-					keep = append(keep, messages[mid:]...)
-					messages = keep
+
+				// Progressive compression strategy:
+				// Retry 0: Remove tool definitions (often the largest component)
+				// Retry 1: Keep system prompt + last 25% of messages
+				// Retry 2: Keep system prompt + last 2 messages (most aggressive)
+				switch retry {
+				case 0:
+					// First retry: remove tool definitions to free space
+					providerToolDefs = nil
+					logger.InfoCF("agent", "Retry 0: removed tool definitions to free context space", nil)
+				case 1:
+					// Second retry: keep system prompt + last 25% of messages
+					if len(messages) > 4 {
+						keep := messages[:1] // system prompt
+						quarterIdx := len(messages) - len(messages)/4
+						if quarterIdx < 2 {
+							quarterIdx = 2
+						}
+						keep = append(keep, messages[quarterIdx:]...)
+						messages = keep
+						logger.InfoCF("agent", "Retry 1: kept system prompt + recent messages",
+							map[string]interface{}{"kept": len(keep)})
+					}
+				case 2:
+					// Third retry: most aggressive - system prompt + last 2 messages
+					if len(messages) > 3 {
+						keep := messages[:1]
+						keep = append(keep, messages[len(messages)-2:]...)
+						messages = keep
+						logger.InfoCF("agent", "Retry 2: kept system prompt + last 2 messages",
+							map[string]interface{}{"kept": len(keep)})
+					}
 				}
 				continue
 			}
@@ -604,7 +660,7 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 		// Save assistant message with tool calls to session
 		al.sessions.AddFullMessage(opts.SessionKey, assistantMsg)
 
-		// Execute tool calls
+		// Execute tool calls with loop detection
 		for _, tc := range response.ToolCalls {
 			// Log tool call with arguments preview
 			argsJSON, _ := json.Marshal(tc.Arguments)
@@ -614,6 +670,20 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 					"tool":      tc.Name,
 					"iteration": iteration,
 				})
+
+			// Check for repeated identical tool calls (loop detection)
+			key := toolCallKey{Name: tc.Name, Args: string(argsJSON)}
+			recentToolCalls[key]++
+			if recentToolCalls[key] > 2 {
+				toolResultMsg := providers.Message{
+					Role:       "tool",
+					Content:    fmt.Sprintf("Warning: tool '%s' with these arguments was already called %d times. Try a different approach.", tc.Name, recentToolCalls[key]-1),
+					ToolCallID: tc.ID,
+				}
+				messages = append(messages, toolResultMsg)
+				al.sessions.AddFullMessage(opts.SessionKey, toolResultMsg)
+				continue
+			}
 
 			// Create async callback for tools that implement AsyncTool
 			// NOTE: Following openclaw's design, async tools do NOT send results directly to users.
@@ -698,6 +768,12 @@ func (al *AgentLoop) maybeSummarize(sessionKey string) {
 		if _, loading := al.summarizing.LoadOrStore(sessionKey, true); !loading {
 			go func() {
 				defer al.summarizing.Delete(sessionKey)
+				defer func() {
+					if r := recover(); r != nil {
+						logger.ErrorCF("agent", "Summarization panicked",
+							map[string]interface{}{"session": sessionKey, "panic": fmt.Sprintf("%v", r)})
+					}
+				}()
 				al.summarizeSession(sessionKey)
 			}()
 		}
@@ -869,15 +945,31 @@ func (al *AgentLoop) summarizeBatch(ctx context.Context, batch []providers.Messa
 }
 
 // estimateTokens estimates the number of tokens in a message list.
-// Uses a safe heuristic of 2.5 characters per token (totalChars * 2 / 5)
-// to account for CJK and other multi-byte characters.
+// Uses model-aware character-per-token ratios for better accuracy.
+// Accounts for message structure overhead (~4 tokens per message).
 func (al *AgentLoop) estimateTokens(messages []providers.Message) int {
 	totalChars := 0
 	for _, m := range messages {
 		totalChars += utf8.RuneCountInString(m.Content)
+		// Account for message structure overhead (~4 tokens per message)
+		totalChars += 16
 	}
-	// 2.5 chars per token = totalChars * 2 / 5
-	return totalChars * 2 / 5
+	// Model-specific ratios (chars per token)
+	ratio := 4.0 // conservative default
+	model := strings.ToLower(al.model)
+	switch {
+	case strings.Contains(model, "claude"):
+		ratio = 3.5
+	case strings.Contains(model, "gpt"):
+		ratio = 3.5
+	case strings.Contains(model, "qwen"):
+		ratio = 2.5
+	case strings.Contains(model, "llama"):
+		ratio = 3.0
+	case strings.Contains(model, "deepseek"):
+		ratio = 2.8
+	}
+	return int(float64(totalChars) / ratio)
 }
 
 // forceCompression aggressively reduces context when the limit is hit.

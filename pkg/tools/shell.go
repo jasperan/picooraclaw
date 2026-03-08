@@ -64,6 +64,17 @@ func NewExecTool(workingDir string, restrict bool) *ExecTool {
 		regexp.MustCompile(`\bssh\b.*@`),
 		regexp.MustCompile(`\beval\b`),
 		regexp.MustCompile(`\bsource\s+.*\.sh\b`),
+		// Block interpreted language command execution (bypass shell deny-list)
+		regexp.MustCompile(`\bpython[23]?\s+-c\b`),
+		regexp.MustCompile(`\bperl\s+-e\b`),
+		regexp.MustCompile(`\bruby\s+-e\b`),
+		regexp.MustCompile(`\bnode\s+-e\b`),
+		// Block network tools commonly used for reverse shells
+		regexp.MustCompile(`\bnc\s`),
+		regexp.MustCompile(`\bnetcat\b`),
+		regexp.MustCompile(`\bncat\b`),
+		// Block access to sensitive system files
+		regexp.MustCompile(`/etc/shadow`),
 	}
 
 	return &ExecTool{
@@ -122,13 +133,13 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) *To
 		return ErrorResult(guardError)
 	}
 
-	// timeout == 0 means no timeout
+	// Apply timeout (default 5 minutes if not configured to prevent runaway processes)
 	var cmdCtx context.Context
 	var cancel context.CancelFunc
 	if t.timeout > 0 {
 		cmdCtx, cancel = context.WithTimeout(ctx, t.timeout)
 	} else {
-		cmdCtx, cancel = context.WithCancel(ctx)
+		cmdCtx, cancel = context.WithTimeout(ctx, 5*time.Minute)
 	}
 	defer cancel()
 
