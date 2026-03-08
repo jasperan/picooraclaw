@@ -12,7 +12,10 @@ func TestMemoryStore_New(t *testing.T) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	embSvc := NewEmbeddingService(db, "TEST_MODEL")
+	embSvc, err := NewEmbeddingService(db, "TEST_MODEL")
+	if err != nil {
+		t.Fatalf("NewEmbeddingService failed: %v", err)
+	}
 	store := NewMemoryStore(db, "test-agent", embSvc)
 
 	if store == nil {

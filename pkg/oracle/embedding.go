@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/jasperan/picooraclaw/pkg/logger"
@@ -20,6 +21,7 @@ type EmbeddingService struct {
 	db        *sql.DB
 	modelName string
 	dims      int
+	dimsOnce  sync.Once
 
 	// API mode fields
 	mode       string // "onnx" or "api"
@@ -30,13 +32,16 @@ type EmbeddingService struct {
 }
 
 // NewEmbeddingService creates a new EmbeddingService using in-database ONNX mode.
-func NewEmbeddingService(db *sql.DB, modelName string) *EmbeddingService {
+func NewEmbeddingService(db *sql.DB, modelName string) (*EmbeddingService, error) {
+	if err := validateSQLIdentifier(modelName); err != nil {
+		return nil, fmt.Errorf("invalid ONNX model name: %w", err)
+	}
 	return &EmbeddingService{
 		db:        db,
 		modelName: modelName,
 		dims:      384, // ALL_MINILM_L12_V2 outputs 384-dim vectors
 		mode:      "onnx",
-	}
+	}, nil
 }
 
 // NewAPIEmbeddingService creates an EmbeddingService that calls an external API.
@@ -156,14 +161,14 @@ func (es *EmbeddingService) embedViaAPI(text string) ([]float32, error) {
 
 	embedding := apiResp.Data[0].Embedding
 
-	// Set dims on first successful call
-	if es.dims == 0 {
+	// Set dims on first successful call (thread-safe)
+	es.dimsOnce.Do(func() {
 		es.dims = len(embedding)
 		logger.InfoCF("oracle", "Embedding dimensions detected", map[string]interface{}{
 			"dims":  es.dims,
 			"model": es.apiModel,
 		})
-	}
+	})
 
 	return embedding, nil
 }
@@ -203,6 +208,19 @@ func (es *EmbeddingService) CheckONNXLoaded() (bool, error) {
 func (es *EmbeddingService) LoadONNXModel(onnxDir, onnxFile string) error {
 	if es.mode == "api" {
 		return nil
+	}
+	if err := validateSQLIdentifier(es.modelName); err != nil {
+		return fmt.Errorf("invalid model name: %w", err)
+	}
+	if err := validateSQLIdentifier(onnxDir); err != nil {
+		return fmt.Errorf("invalid ONNX directory name: %w", err)
+	}
+	// Sanitize onnxFile: allow alphanumeric, underscore, hyphen, and dot (for filenames like model.onnx)
+	for _, r := range onnxFile {
+		if r == '_' || r == '-' || r == '.' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		return fmt.Errorf("invalid character %q in ONNX file name %q", r, onnxFile)
 	}
 	plsql := fmt.Sprintf(`BEGIN
 		DBMS_VECTOR.LOAD_ONNX_MODEL(

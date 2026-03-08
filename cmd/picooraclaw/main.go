@@ -1544,7 +1544,12 @@ func setupOracleCmd() {
 		embSvc = oracledb.NewAPIEmbeddingService(conn.DB(), cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
 		fmt.Printf("✓ Using API embedding provider (model: %s)\n", cfg.Oracle.EmbeddingModel)
 	} else {
-		embSvc = oracledb.NewEmbeddingService(conn.DB(), cfg.Oracle.ONNXModel)
+		var embErr error
+		embSvc, embErr = oracledb.NewEmbeddingService(conn.DB(), cfg.Oracle.ONNXModel)
+		if embErr != nil {
+			fmt.Printf("✗ Failed to create embedding service: %v\n", embErr)
+			os.Exit(1)
+		}
 		loaded, err := embSvc.CheckONNXLoaded()
 		if err != nil {
 			fmt.Printf("⚠ Could not check ONNX model status: %v\n", err)
@@ -1620,7 +1625,12 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 		embSvc = oracledb.NewAPIEmbeddingService(db, cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
 		logger.InfoC("oracle", "Using API-based embedding service")
 	} else {
-		embSvc = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
+		var embErr error
+		embSvc, embErr = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
+		if embErr != nil {
+			logger.ErrorCF("oracle", "Failed to create embedding service", map[string]interface{}{"error": embErr.Error()})
+			return nil, nil, fmt.Errorf("failed to create embedding service: %w", embErr)
+		}
 		logger.InfoC("oracle", "Using in-database ONNX embedding service")
 	}
 

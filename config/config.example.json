@@ -4,7 +4,7 @@
       "workspace": "~/.picoclaw/workspace",
       "restrict_to_workspace": true,
       "provider": "ollama",
-      "model": "qwen3:latest",
+      "model": "qwen3.5:35b-a3b",
       "max_tokens": 8192,
       "temperature": 0.7,
       "max_tool_iterations": 20

@@ -41,7 +41,12 @@ func seedDemoCmd() {
 	if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
 		embSvc = oracledb.NewAPIEmbeddingService(db, cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
 	} else {
-		embSvc = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
+		var embErr error
+		embSvc, embErr = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
+		if embErr != nil {
+			fmt.Printf("✗ Failed to create embedding service: %v\n", embErr)
+			os.Exit(1)
+		}
 	}
 
 	// --- Memories ---

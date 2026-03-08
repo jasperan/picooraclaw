@@ -16,6 +16,13 @@ type VectorSearchResult struct {
 // VectorSearch performs a generic vector similarity search on a table.
 // It returns results ordered by cosine distance (ascending = most similar first).
 func VectorSearch(db *sql.DB, table, idCol, textCol, embeddingCol, agentID string, queryVector []float32, maxResults int, minScore float64) ([]VectorSearchResult, error) {
+	// Validate all SQL identifiers to prevent injection
+	for name, val := range map[string]string{"table": table, "idCol": idCol, "textCol": textCol, "embeddingCol": embeddingCol} {
+		if err := validateSQLIdentifier(val); err != nil {
+			return nil, fmt.Errorf("invalid %s: %w", name, err)
+		}
+	}
+
 	query := fmt.Sprintf(`
 		SELECT %s, %s,
 		       VECTOR_DISTANCE(%s, :1, COSINE) AS distance

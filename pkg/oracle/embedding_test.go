@@ -12,7 +12,10 @@ func TestEmbeddingService_New(t *testing.T) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	svc := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	svc, err := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	if err != nil {
+		t.Fatalf("NewEmbeddingService failed: %v", err)
+	}
 
 	if svc.Dims() != 384 {
 		t.Errorf("Dims() = %d, want 384", svc.Dims())
@@ -28,7 +31,10 @@ func TestEmbeddingService_EmbedTextEmpty(t *testing.T) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	svc := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	svc, err := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	if err != nil {
+		t.Fatalf("NewEmbeddingService failed: %v", err)
+	}
 
 	emb, err := svc.EmbedText("")
 	if err != nil {
@@ -51,7 +57,10 @@ func TestEmbeddingService_CheckONNXLoaded(t *testing.T) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	svc := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	svc, err := NewEmbeddingService(db, "ALL_MINILM_L12_V2")
+	if err != nil {
+		t.Fatalf("NewEmbeddingService failed: %v", err)
+	}
 
 	// Model exists
 	mock.ExpectQuery("SELECT COUNT").
@@ -90,7 +99,10 @@ func TestEmbeddingService_LoadONNXModel(t *testing.T) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	svc := NewEmbeddingService(db, "TEST_MODEL")
+	svc, err := NewEmbeddingService(db, "TEST_MODEL")
+	if err != nil {
+		t.Fatalf("NewEmbeddingService failed: %v", err)
+	}
 
 	mock.ExpectExec("DBMS_VECTOR.LOAD_ONNX_MODEL").
 		WillReturnResult(sqlmock.NewResult(0, 0))
