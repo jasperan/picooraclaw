@@ -3,10 +3,13 @@ set -euo pipefail
 
 # ============================================================
 # picooraclaw — One-Command Installer
-# ---
+# PicoOraClaw is a fork of PicoClaw that adds Oracle AI Database as a backend for persistent storage
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/jasperan/picooraclaw/main/install.sh | bash
+#
+# Override install location:
+#   PROJECT_DIR=/opt/myapp curl -fsSL ... | bash
 # ============================================================
 
 REPO_URL="https://github.com/jasperan/picooraclaw.git"
@@ -33,7 +36,7 @@ print_banner() {
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BOLD}  picooraclaw${NC}"
-    echo -e "  ---"
+    echo -e "  PicoOraClaw is a fork of PicoClaw that adds Oracle AI Database as a backend for persistent storage"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 }
