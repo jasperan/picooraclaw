@@ -51,7 +51,7 @@ func NewMemoryStore(db *sql.DB, agentID string, embedding *EmbeddingService) *Me
 func (ms *MemoryStore) ReadLongTerm() string {
 	// Order by importance with time-decay: recently accessed memories rank higher
 	rows, err := ms.db.Query(
-		"SELECT content FROM PICO_MEMORIES WHERE agent_id = :1 ORDER BY (importance * (1.0 / (1.0 + (SYSDATE - NVL(accessed_at, created_at)) * 0.1))) DESC, created_at DESC FETCH FIRST 50 ROWS ONLY",
+		"SELECT content FROM PICO_MEMORIES WHERE agent_id = :1 ORDER BY (importance * (1.0 / (1.0 + (SYSDATE - CAST(NVL(accessed_at, created_at) AS DATE)) * 0.1))) DESC, CAST(created_at AS DATE) DESC FETCH FIRST 50 ROWS ONLY",
 		ms.agentID,
 	)
 	if err != nil {
