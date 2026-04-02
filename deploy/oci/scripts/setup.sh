@@ -14,9 +14,8 @@ ADB_WALLET_BASE64="${ADB_WALLET_BASE64:-}"
 # -- 1. System packages --
 echo "--- Installing system packages ---"
 dnf install -y oracle-epel-release-el9
-dnf install -y docker-engine git make gcc wget curl unzip python3
-systemctl enable --now docker
-usermod -aG docker opc
+dnf install -y podman podman-docker git make gcc wget curl unzip python3 zstd
+# podman-docker provides 'docker' CLI alias for compatibility
 
 # -- 2. Install Go 1.24 --
 echo "--- Installing Go 1.24 ---"
@@ -39,8 +38,8 @@ echo "--- Installing Ollama ---"
 curl -fsSL https://ollama.com/install.sh | sh
 systemctl enable --now ollama
 sleep 5
-ollama pull gemma3:270m
-echo "Ollama ready with gemma3:270m"
+ollama pull qwen2.5:3b
+echo "Ollama ready with qwen2.5:3b"
 
 # -- 4. Build PicoOraClaw --
 echo "--- Building PicoOraClaw ---"
@@ -58,14 +57,14 @@ sudo -u opc picooraclaw onboard <<< "n"
 
 CONFIG_FILE="/home/opc/.picooraclaw/config.json"
 
-# Patch config: set ollama provider and gemma3:270m model
+# Patch config: set ollama provider and qwen2.5:3b model (supports tool calling)
 python3 - "$CONFIG_FILE" <<'PYEOF'
 import json, sys
 path = sys.argv[1]
 with open(path) as f:
     cfg = json.load(f)
 cfg["agents"]["defaults"]["provider"] = "ollama"
-cfg["agents"]["defaults"]["model"] = "gemma3:270m"
+cfg["agents"]["defaults"]["model"] = "qwen2.5:3b"
 with open(path, "w") as f:
     json.dump(cfg, f, indent=2)
 PYEOF
@@ -76,7 +75,7 @@ echo "--- Setting up Oracle Database (mode: $ORACLE_MODE) ---"
 if [ "$ORACLE_MODE" = "freepdb" ]; then
   # Pull and start Oracle AI Database 26ai Free container (default backend)
   # gvenzl/oracle-free requires no registry auth (unlike container-registry.oracle.com)
-  docker pull gvenzl/oracle-free:latest
+  docker pull docker.io/gvenzl/oracle-free:latest
   docker run -d --name oracle-free \
     -p 1521:1521 \
     -e ORACLE_PASSWORD="$ORACLE_PWD" \
@@ -85,7 +84,7 @@ if [ "$ORACLE_MODE" = "freepdb" ]; then
     -e ORACLE_CHARACTERSET=AL32UTF8 \
     -v oracle-data:/opt/oracle/oradata \
     --restart unless-stopped \
-    gvenzl/oracle-free:latest
+    docker.io/gvenzl/oracle-free:latest
 
   echo "Waiting for Oracle DB to be ready..."
   TIMEOUT=300
@@ -216,8 +215,7 @@ echo "--- Installing gateway service ---"
 cat > /etc/systemd/system/picooraclaw-gateway.service <<'UNIT'
 [Unit]
 Description=PicoOraClaw Gateway
-After=network-online.target docker.service ollama.service
-Requires=docker.service
+After=network-online.target ollama.service
 Wants=network-online.target
 
 [Service]
