@@ -851,7 +851,7 @@ func formatMessagesForLog(messages []providers.Message) string {
 	result += "[\n"
 	for i, msg := range messages {
 		result += fmt.Sprintf("  [%d] Role: %s\n", i, msg.Role)
-		if msg.ToolCalls != nil && len(msg.ToolCalls) > 0 {
+		if len(msg.ToolCalls) > 0 {
 			result += "  ToolCalls:\n"
 			for _, tc := range msg.ToolCalls {
 				result += fmt.Sprintf("    - ID: %s, Type: %s, Name: %s\n", tc.ID, tc.Type, tc.Name)
@@ -1014,43 +1014,6 @@ func (al *AgentLoop) estimateTokens(messages []providers.Message) int {
 		ratio = 2.8
 	}
 	return int(float64(totalChars) / ratio)
-}
-
-// forceCompression aggressively reduces context when the limit is hit.
-// It drops the oldest 50% of messages, keeping the system prompt and last message.
-func (al *AgentLoop) forceCompression(sessionKey string) {
-	history := al.sessions.GetHistory(sessionKey)
-	if len(history) <= 4 {
-		return
-	}
-
-	// Keep system prompt [0] and last message; drop oldest half of conversation
-	conversation := history[1 : len(history)-1]
-	if len(conversation) == 0 {
-		return
-	}
-
-	mid := len(conversation) / 2
-	droppedCount := mid
-	keptConversation := conversation[mid:]
-
-	newHistory := make([]providers.Message, 0)
-	newHistory = append(newHistory, history[0]) // system prompt
-	newHistory = append(newHistory, providers.Message{
-		Role:    "system",
-		Content: fmt.Sprintf("[System: Emergency compression dropped %d oldest messages due to context limit]", droppedCount),
-	})
-	newHistory = append(newHistory, keptConversation...)
-	newHistory = append(newHistory, history[len(history)-1]) // last message
-
-	al.sessions.SetHistory(sessionKey, newHistory)
-	al.sessions.Save(sessionKey)
-
-	logger.WarnCF("agent", "Forced compression executed", map[string]interface{}{
-		"session_key":  sessionKey,
-		"dropped_msgs": droppedCount,
-		"new_count":    len(newHistory),
-	})
 }
 
 // handleCommand handles slash commands like /show, /list, /switch.

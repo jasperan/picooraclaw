@@ -222,7 +222,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 		content += message.Caption
 	}
 
-	if message.Photo != nil && len(message.Photo) > 0 {
+	if len(message.Photo) > 0 {
 		photo := message.Photo[len(message.Photo)-1]
 		photoPath := c.downloadPhoto(ctx, photo.FileID)
 		if photoPath != "" {
@@ -231,7 +231,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 			if content != "" {
 				content += "\n"
 			}
-			content += fmt.Sprintf("[image: photo]")
+			content += "[image: photo]"
 		}
 	}
 
@@ -252,7 +252,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 						"error": err.Error(),
 						"path":  voicePath,
 					})
-					transcribedText = fmt.Sprintf("[voice (transcription failed)]")
+					transcribedText = "[voice (transcription failed)]"
 				} else {
 					transcribedText = fmt.Sprintf("[voice transcription: %s]", result.Text)
 					logger.InfoCF("telegram", "Voice transcribed successfully", map[string]interface{}{
@@ -260,7 +260,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 					})
 				}
 			} else {
-				transcribedText = fmt.Sprintf("[voice]")
+				transcribedText = "[voice]"
 			}
 
 			if content != "" {
@@ -278,7 +278,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 			if content != "" {
 				content += "\n"
 			}
-			content += fmt.Sprintf("[audio]")
+			content += "[audio]"
 		}
 	}
 
@@ -290,7 +290,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, update telego.Updat
 			if content != "" {
 				content += "\n"
 			}
-			content += fmt.Sprintf("[file]")
+			content += "[file]"
 		}
 	}
 
