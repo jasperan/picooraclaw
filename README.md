@@ -25,14 +25,14 @@
 
 ---
 
-PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings — no external embedding API required.
+PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings (no external embedding API required).
 
 <table align="center">
   <tr align="center">
     <td align="center" valign="top">
       <p align="center">
         <img src="assets/picoclaw_mem.gif" width="360" height="240">
-        <br><sub>Under 10MB RAM — runs on $10 hardware</sub>
+        <br><sub>Under 10MB RAM. Runs on $10 hardware.</sub>
       </p>
     </td>
     <td align="center" valign="top">
@@ -65,7 +65,7 @@ PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) tha
 ## Installation
 
 <!-- one-command-install -->
-> **One-command install** — clone, configure, and run in a single step:
+> **One-command install**. Clone, configure, and run in a single step:
 >
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/jasperan/picooraclaw/main/install.sh | bash
@@ -115,7 +115,7 @@ PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) tha
   <img src="assets/picoclaw_scedule.gif" width="600">
 </p>
 
-Set reminders, run recurring tasks, automate workflows — scheduled jobs are stored persistently in Oracle AI Database with full ACID guarantees.
+Set reminders, run recurring tasks, automate workflows. Scheduled jobs are stored persistently in Oracle AI Database with full ACID guarantees.
 
 ---
 
@@ -177,13 +177,13 @@ Edit `~/.picooraclaw/config.json`:
 ./build/picooraclaw agent
 ```
 
-That's it — you have a working AI assistant with local inference. No API keys, no cloud dependency.
+That's it. You have a working AI assistant with local inference. No API keys, no cloud dependency.
 
 ---
 
 ## Deploy to Oracle Cloud (One-Click)
 
-Deploy a fully configured PicoOraClaw instance on OCI with Oracle AI Database, Ollama, and the gateway — all automated.
+Deploy a fully configured PicoOraClaw instance on OCI with Oracle AI Database, Ollama, and the gateway (all automated).
 
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/jasperan/picooraclaw/raw/main/deploy/oci/orm/picooraclaw-orm.zip)
 
@@ -212,7 +212,7 @@ curl http://<public_ip>:18790/health
 
 Oracle gives you persistent storage, semantic memory (remember/recall by meaning), and crash-safe ACID transactions. Without it, storage is file-based.
 
-Run the setup script — it handles everything automatically:
+Run the setup script. It handles everything automatically:
 
 ```bash
 ./scripts/setup-oracle.sh [optional-password]
@@ -254,7 +254,7 @@ Expected output when complete:
 ./build/picooraclaw agent -m "What programming language do I prefer?"
 ```
 
-The second command finds the stored memory via cosine similarity on 384-dimensional vectors — no keyword matching.
+The second command finds the stored memory via cosine similarity on 384-dimensional vectors (no keyword matching).
 
 ### Step 6: Inspect what's stored
 
@@ -682,13 +682,13 @@ Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
 
 ## OCI Generative AI (Optional)
 
-PicoOraClaw can optionally use **OCI Generative AI** as an LLM backend via the `oci-openai` Python library. This is **not required** — Ollama remains the default and recommended LLM backend.
+PicoOraClaw can optionally use **OCI Generative AI** as an LLM backend via the `oci-openai` Python library. This is **not required**. Ollama remains the default and recommended LLM backend.
 
 ### Why OCI GenAI?
 
-- **Enterprise models** — Access xAI Grok, Meta Llama, Cohere, and other models through OCI
-- **OCI-native auth** — Uses your existing `~/.oci/config` profile (no separate API keys)
-- **Same region as your database** — Run inference and storage in the same OCI region
+- **Enterprise models**. Access xAI Grok, Meta Llama, Cohere, and other models through OCI
+- **OCI-native auth**. Uses your existing `~/.oci/config` profile (no separate API keys)
+- **Same region as your database**. Run inference and storage in the same OCI region
 
 ### Setup
 
@@ -860,9 +860,9 @@ Download wallet from OCI Console > Autonomous Database > DB Connection > Downloa
 | `port` | `PICO_ORACLE_PORT` | `1521` | Listener port |
 | `service` | `PICO_ORACLE_SERVICE` | `FREEPDB1` | Service name |
 | `user` | `PICO_ORACLE_USER` | `picooraclaw` | DB username |
-| `password` | `PICO_ORACLE_PASSWORD` | — | DB password |
-| `dsn` | `PICO_ORACLE_DSN` | — | Full DSN (ADB wallet-less) |
-| `walletPath` | `PICO_ORACLE_WALLET_PATH` | — | Wallet directory (ADB mTLS) |
+| `password` | `PICO_ORACLE_PASSWORD` | (none) | DB password |
+| `dsn` | `PICO_ORACLE_DSN` | (none) | Full DSN (ADB wallet-less) |
+| `walletPath` | `PICO_ORACLE_WALLET_PATH` | (none) | Wallet directory (ADB mTLS) |
 | `onnxModel` | `PICO_ORACLE_ONNX_MODEL` | `ALL_MINILM_L12_V2` | ONNX model for embeddings |
 | `agentId` | `PICO_ORACLE_AGENT_ID` | `default` | Multi-agent isolation key |
 

@@ -85,3 +85,13 @@ docs/*.md
 task_plan.md
 findings.md
 progress.md
+
+# Agent skill/config directories (local only)
+.agents/
+.claude/
+.crush/
+.openhands/
+.serena/
+
+# Generated content (local only)
+content/
