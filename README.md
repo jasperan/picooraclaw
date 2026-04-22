@@ -1,9 +1,9 @@
 <div align="center">
   <img src="assets/new_logo.png" alt="PicoClaw" width="512">
 
-  <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + ollama + Oracle AI Database based on PicoClaw</h1>
+  <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + OCI GenAI + Oracle AI Database based on PicoClaw</h1>
 
-  <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search · ollama-based </h3>
+  <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search · OCI GenAI (default) · Ollama · Any OpenAI-compatible API</h3>
 
   <p>
     <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
@@ -25,7 +25,7 @@
 
 ---
 
-PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search, as well as ollama for LLM communication. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings (no external embedding API required).
+PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. By default it uses **OCI Generative AI** (xAI Grok 4) for inference, with **Ollama** for local open-weight models and **any OpenAI-compatible API** as alternatives. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings (no external embedding API required).
 
 <table align="center">
   <tr align="center">
@@ -121,7 +121,7 @@ Set reminders, run recurring tasks, automate workflows. Scheduled jobs are store
 
 ## Quickstart (5 minutes)
 
-Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/)).
+Everything you need: **Go 1.24+** and one of the LLM backends below. Optionally add **Docker** for [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/).
 
 ### Step 1: Build
 
@@ -129,33 +129,56 @@ Everything you need: **Go 1.24+**, **Ollama** and **Docker** (for [Oracle AI Dat
 git clone https://github.com/jasperan/picooraclaw.git
 cd picooraclaw
 make build
-```
-
-### Step 2: Initialize
-
-```bash
 ./build/picooraclaw onboard
 ```
 
-### Step 3: Start Ollama and pull a model
+### Step 2: Pick your LLM backend
+
+PicoOraClaw supports three ways to connect to an LLM. Pick one:
+
+<details open>
+<summary><b>Option A: OCI Generative AI (default)</b></summary>
+
+Uses Oracle Cloud's hosted models (xAI Grok 4, Meta Llama, Cohere) via a local proxy. No GPU needed.
+
+**Prerequisites:** Python 3.11+, a configured `~/.oci/config` profile.
 
 ```bash
-# Install Ollama if needed: https://ollama.com/download
-ollama pull qwen3:latest
+# 1. Install the proxy
+cd oci-genai && pip install -r requirements.txt && cd ..
+
+# 2. Start the proxy (reads ~/.oci/config automatically)
+export OCI_COMPARTMENT_ID=$(awk '/^tenancy=/{sub(/^tenancy=/,"");print;exit}' ~/.oci/config)
+python3 oci-genai/proxy.py &
 ```
 
-### Step 4: Configure for Ollama
+The default config already points at `http://localhost:9999/v1` with `xai.grok-4`. No config edits needed.
 
-Edit `~/.picooraclaw/config.json`:
+Available models: `xai.grok-4`, `xai.grok-3-mini`, `meta.llama-3.3-70b-instruct`, `cohere.command-r-plus`. Check [OCI GenAI docs](https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm) for your region's availability.
+
+</details>
+
+<details>
+<summary><b>Option B: Ollama (local open-weight models)</b></summary>
+
+Runs models locally on your hardware. No cloud, no API keys, full privacy.
+
+**Prerequisites:** [Ollama](https://ollama.com/download) installed, a GPU with enough VRAM for your chosen model.
+
+```bash
+# 1. Pull a model
+ollama pull gemma4:26b    # 26B MoE, 17GB, needs 24GB+ VRAM
+# or: ollama pull gemma4  # 8B, 9.6GB, fits on most GPUs
+
+# 2. Edit ~/.picooraclaw/config.json
+```
 
 ```json
 {
   "agents": {
     "defaults": {
       "provider": "ollama",
-      "model": "qwen3:latest",
-      "max_tokens": 8192,
-      "temperature": 0.7
+      "model": "gemma4:26b"
     }
   },
   "providers": {
@@ -167,17 +190,45 @@ Edit `~/.picooraclaw/config.json`:
 }
 ```
 
-### Step 5: Chat
+</details>
+
+<details>
+<summary><b>Option C: Any OpenAI-compatible API</b></summary>
+
+Works with OpenAI, OpenRouter, Groq, Anthropic, DeepSeek, or any service that exposes a `/v1/chat/completions` endpoint.
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "provider": "openai",
+      "model": "gpt-4o"
+    }
+  },
+  "providers": {
+    "openai": {
+      "api_key": "sk-your-key-here",
+      "api_base": "https://api.openai.com/v1"
+    }
+  }
+}
+```
+
+Swap `api_base` for any compatible endpoint (e.g., `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`). See the [full provider list](#using-a-cloud-llm-instead-of-ollama) below.
+
+</details>
+
+### Step 3: Chat
 
 ```bash
-# One-shot
-./build/picooraclaw agent -m "Hello!"
+# One-shot (with streaming)
+./build/picooraclaw agent --stream -m "Hello!"
 
 # Interactive mode
 ./build/picooraclaw agent
 ```
 
-That's it. You have a working AI assistant with local inference. No API keys, no cloud dependency.
+That's it. The `--stream` flag shows tokens as they're generated and displays reasoning traces when the model supports them.
 
 ---
 
@@ -612,9 +663,9 @@ The `remember` tool stores text + vector embedding via `VECTOR_EMBEDDING(ALL_MIN
 
 ---
 
-## Using a Cloud LLM Instead of Ollama
+## Using Alternative LLM Providers
 
-If you prefer a cloud provider, set `provider` and add your API key:
+PicoOraClaw defaults to OCI GenAI, but you can swap to any provider by editing `~/.picooraclaw/config.json`. Set `provider` and add your API key:
 
 <details>
 <summary><b>OpenRouter (access to all models)</b></summary>
@@ -669,33 +720,44 @@ Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
 
 | Provider | Purpose | Get API Key |
 |---|---|---|
-| `ollama` | Local inference (recommended) | [ollama.com](https://ollama.com) |
+| `openai` + OCI proxy | **OCI GenAI (default)** (xAI Grok, Llama, Cohere) | [OCI credentials](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm) |
+| `ollama` | Local open-weight inference (no cloud) | [ollama.com](https://ollama.com) |
+| `openai` | GPT models / any OpenAI-compatible API | [platform.openai.com](https://platform.openai.com) |
 | `openrouter` | Access to all models | [openrouter.ai](https://openrouter.ai/keys) |
-| `zhipu` | Zhipu/GLM models | [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) |
 | `anthropic` | Claude models | [console.anthropic.com](https://console.anthropic.com) |
-| `openai` | GPT models | [platform.openai.com](https://platform.openai.com) |
 | `gemini` | Gemini models | [aistudio.google.com](https://aistudio.google.com) |
-| `deepseek` | DeepSeek models | [platform.deepseek.com](https://platform.deepseek.com) |
 | `groq` | Fast inference + voice transcription | [console.groq.com](https://console.groq.com) |
+| `deepseek` | DeepSeek models | [platform.deepseek.com](https://platform.deepseek.com) |
+| `zhipu` | Zhipu/GLM models | [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) |
 
 </details>
 
-## OCI Generative AI (Optional)
+## OCI Generative AI (Default Backend)
 
-PicoOraClaw can optionally use **OCI Generative AI** as an LLM backend via the `oci-openai` Python library. This is **not required**. Ollama remains the default and recommended LLM backend.
+PicoOraClaw uses **OCI Generative AI** as its default LLM backend. A lightweight Python proxy (`oci-genai/proxy.py`) translates standard OpenAI API calls into OCI-authenticated requests, so the Go binary stays dependency-free.
 
-### Why OCI GenAI?
+```
+PicoOraClaw (Go) --> localhost:9999/v1 (proxy.py) --> OCI GenAI endpoint
+                     OpenAI-compatible              OCI User Principal Auth
+```
 
-- **Enterprise models**. Access xAI Grok, Meta Llama, Cohere, and other models through OCI
-- **OCI-native auth**. Uses your existing `~/.oci/config` profile (no separate API keys)
-- **Same region as your database**. Run inference and storage in the same OCI region
+### Available OCI GenAI Models
+
+| Model ID | Description |
+|---|---|
+| `xai.grok-4` | xAI Grok 4 (default, strong tool calling) |
+| `xai.grok-3-mini` | xAI Grok 3 Mini (fast, detailed reasoning traces) |
+| `meta.llama-3.3-70b-instruct` | Meta Llama 3.3 70B Instruct |
+| `cohere.command-r-plus` | Cohere Command R+ |
+| `meta.llama-3.1-405b-instruct` | Meta Llama 3.1 405B Instruct |
+
+Model availability varies by region. Check the [OCI GenAI documentation](https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm) for the latest list.
 
 ### Setup
 
-1. **Install the OCI GenAI proxy:**
+1. **Install the proxy:**
    ```bash
-   cd oci-genai
-   pip install -r requirements.txt
+   cd oci-genai && pip install -r requirements.txt
    ```
 
 2. **Configure OCI credentials** (`~/.oci/config`):
@@ -708,28 +770,19 @@ PicoOraClaw can optionally use **OCI Generative AI** as an LLM backend via the `
    key_file=~/.oci/oci_api_key.pem
    ```
 
-3. **Set environment variables:**
+3. **Start the proxy** (auto-reads `~/.oci/config`):
    ```bash
-   export OCI_PROFILE=DEFAULT
-   export OCI_REGION=us-chicago-1
-   export OCI_COMPARTMENT_ID=ocid1.compartment.oc1..your-compartment-ocid
-   ```
-
-4. **Start the OCI GenAI proxy:**
-   ```bash
-   cd oci-genai
-   python proxy.py
+   export OCI_COMPARTMENT_ID=$(awk '/^tenancy=/{sub(/^tenancy=/,"");print;exit}' ~/.oci/config)
+   python3 oci-genai/proxy.py
    # Proxy runs at http://localhost:9999/v1
    ```
 
-5. **Configure PicoOraClaw** (`~/.picooraclaw/config.json`):
-   ```json
-   {
-     "provider": "openai",
-     "api_base": "http://localhost:9999/v1",
-     "api_key": "oci-genai",  # pragma: allowlist secret
-     "model": "meta.llama-3.3-70b-instruct"
-   }
+   The default config already points to this endpoint. No config edits needed.
+
+4. **Run the OCI demo** (starts proxy, runs 5 beats, cleans up):
+   ```bash
+   ./demo-oci.sh                   # xai.grok-4 (default)
+   ./demo-oci.sh xai.grok-3-mini   # faster, with reasoning traces
    ```
 
 See [`oci-genai/README.md`](oci-genai/README.md) for full documentation.

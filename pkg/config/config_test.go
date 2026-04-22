@@ -76,12 +76,16 @@ func TestDefaultConfig_Gateway(t *testing.T) {
 func TestDefaultConfig_Providers(t *testing.T) {
 	cfg := DefaultConfig()
 
-	// Verify all providers are empty by default
+	// Verify providers that should be empty by default.
+	// OpenAI is pre-populated to point at the local OCI GenAI proxy, so it is exempt.
 	if cfg.Providers.Anthropic.APIKey != "" {
 		t.Error("Anthropic API key should be empty by default")
 	}
-	if cfg.Providers.OpenAI.APIKey != "" {
-		t.Error("OpenAI API key should be empty by default")
+	if cfg.Providers.OpenAI.APIKey != "oci-genai" {
+		t.Errorf("OpenAI API key should default to the OCI GenAI proxy sentinel, got %q", cfg.Providers.OpenAI.APIKey)
+	}
+	if cfg.Providers.OpenAI.APIBase != "http://localhost:9999/v1" {
+		t.Errorf("OpenAI API base should default to the OCI GenAI proxy, got %q", cfg.Providers.OpenAI.APIBase)
 	}
 	if cfg.Providers.OpenRouter.APIKey != "" {
 		t.Error("OpenRouter API key should be empty by default")

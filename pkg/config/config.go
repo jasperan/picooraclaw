@@ -273,8 +273,8 @@ func DefaultConfig() *Config {
 			Defaults: AgentDefaults{
 				Workspace:           "~/.picooraclaw/workspace",
 				RestrictToWorkspace: true,
-				Provider:            "ollama",
-				Model:               "qwen3:latest",
+				Provider:            "openai",
+				Model:               "xai.grok-4",
 				MaxTokens:                 8192,
 				Temperature:               0.7,
 				SummarizeMessageThreshold: 20,
@@ -350,7 +350,7 @@ func DefaultConfig() *Config {
 		},
 		Providers: ProvidersConfig{
 			Anthropic:  ProviderConfig{},
-			OpenAI:     ProviderConfig{},
+			OpenAI:     ProviderConfig{APIKey: "oci-genai", APIBase: "http://localhost:9999/v1"},
 			OpenRouter: ProviderConfig{},
 			Groq:       ProviderConfig{},
 			VLLM:       ProviderConfig{},

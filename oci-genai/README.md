@@ -64,6 +64,8 @@ The default LLM backend remains **Ollama** -- this is an optional alternative fo
 
 | Model ID | Description |
 |---|---|
+| `xai.grok-4.20` | xAI Grok 4.20 (reasoning + non-reasoning) |
+| `xai.grok-4.20-multi-agent` | xAI Grok 4.20 Multi-Agent (real-time multi-agent research) |
 | `meta.llama-3.3-70b-instruct` | Meta Llama 3.3 70B Instruct |
 | `xai.grok-3-mini` | xAI Grok 3 Mini |
 | `cohere.command-r-plus` | Cohere Command R+ |

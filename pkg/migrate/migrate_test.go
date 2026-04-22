@@ -293,8 +293,8 @@ func TestConvertConfig(t *testing.T) {
 		if len(warnings) != 0 {
 			t.Errorf("expected no warnings, got %v", warnings)
 		}
-		if cfg.Agents.Defaults.Model != "qwen3:latest" {
-			t.Errorf("default model should be qwen3:latest, got %q", cfg.Agents.Defaults.Model)
+		if cfg.Agents.Defaults.Model != "xai.grok-4" {
+			t.Errorf("default model should be xai.grok-4, got %q", cfg.Agents.Defaults.Model)
 		}
 	})
 }
@@ -318,6 +318,9 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("preserves existing non-empty fields", func(t *testing.T) {
 		existing := config.DefaultConfig()
 		existing.Providers.Anthropic.APIKey = "sk-ant-existing"
+		// OpenAI is pre-populated with the OCI GenAI proxy sentinel by DefaultConfig.
+		// Clear it so this test can exercise the "empty → filled" merge path.
+		existing.Providers.OpenAI.APIKey = ""
 
 		incoming := config.DefaultConfig()
 		incoming.Providers.Anthropic.APIKey = "sk-ant-incoming"
