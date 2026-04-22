@@ -29,6 +29,18 @@ type UsageInfo struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
+// StreamChunk represents a single streaming chunk from the LLM.
+type StreamChunk struct {
+	Content          string // Incremental content text
+	ReasoningContent string // Incremental reasoning/thinking text
+	ToolCallName     string // Tool being called (first chunk only)
+	ToolCallArgs     string // Incremental tool call arguments
+	Done             bool   // True when stream is complete
+}
+
+// StreamCallback is called for each chunk during streaming.
+type StreamCallback func(chunk StreamChunk)
+
 type Message struct {
 	Role       string     `json:"role"`
 	Content    string     `json:"content"`

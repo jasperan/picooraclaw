@@ -7,6 +7,7 @@
 package providers
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -90,6 +91,13 @@ func (p *HTTPProvider) Chat(ctx context.Context, messages []Message, tools []Too
 		}
 	}
 
+	// Check for streaming callback
+	var streamCallback StreamCallback
+	if cb, ok := options["stream_callback"].(StreamCallback); ok {
+		streamCallback = cb
+		requestBody["stream"] = true
+	}
+
 	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -111,24 +119,165 @@ func (p *HTTPProvider) Chat(ctx context.Context, messages []Message, tools []Too
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed:\n  Status: %d\n  Body:   %s", resp.StatusCode, string(body))
+	}
+
+	if streamCallback != nil {
+		return p.chatStream(resp.Body, streamCallback)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed:\n  Status: %d\n  Body:   %s", resp.StatusCode, string(body))
+	return p.parseResponse(body)
+}
+
+// chatStream reads SSE events from a streaming response, calls the callback
+// for each chunk, and returns the fully accumulated LLMResponse.
+func (p *HTTPProvider) chatStream(body io.Reader, callback StreamCallback) (*LLMResponse, error) {
+	scanner := bufio.NewScanner(body)
+	// Increase buffer for large chunks
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	var contentBuilder strings.Builder
+	var reasoningBuilder strings.Builder
+	var finishReason string
+	var usage *UsageInfo
+
+	type streamToolCall struct {
+		ID        string
+		Name      string
+		ArgsAccum strings.Builder
+	}
+	toolCallMap := make(map[int]*streamToolCall)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			callback(StreamChunk{Done: true})
+			break
+		}
+
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content          string `json:"content"`
+					ReasoningContent string `json:"reasoning_content"`
+					ToolCalls        []struct {
+						Index    int    `json:"index"`
+						ID       string `json:"id"`
+						Type     string `json:"type"`
+						Function *struct {
+							Name      string `json:"name"`
+							Arguments string `json:"arguments"`
+						} `json:"function"`
+					} `json:"tool_calls"`
+				} `json:"delta"`
+				FinishReason *string `json:"finish_reason"`
+			} `json:"choices"`
+			Usage *UsageInfo `json:"usage"`
+		}
+
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+
+		if chunk.Usage != nil {
+			usage = chunk.Usage
+		}
+
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+
+		delta := chunk.Choices[0].Delta
+
+		if delta.ReasoningContent != "" {
+			reasoningBuilder.WriteString(delta.ReasoningContent)
+			callback(StreamChunk{ReasoningContent: delta.ReasoningContent})
+		}
+
+		if delta.Content != "" {
+			contentBuilder.WriteString(delta.Content)
+			callback(StreamChunk{Content: delta.Content})
+		}
+
+		for _, tc := range delta.ToolCalls {
+			existing, ok := toolCallMap[tc.Index]
+			if !ok {
+				existing = &streamToolCall{}
+				toolCallMap[tc.Index] = existing
+			}
+			if tc.ID != "" {
+				existing.ID = tc.ID
+			}
+			if tc.Function != nil {
+				if tc.Function.Name != "" {
+					existing.Name = tc.Function.Name
+					callback(StreamChunk{ToolCallName: tc.Function.Name})
+				}
+				if tc.Function.Arguments != "" {
+					existing.ArgsAccum.WriteString(tc.Function.Arguments)
+					callback(StreamChunk{ToolCallArgs: tc.Function.Arguments})
+				}
+			}
+		}
+
+		if chunk.Choices[0].FinishReason != nil {
+			finishReason = *chunk.Choices[0].FinishReason
+		}
 	}
 
-	return p.parseResponse(body)
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("stream read error: %w", err)
+	}
+
+	// Build accumulated tool calls
+	toolCalls := make([]ToolCall, 0, len(toolCallMap))
+	for i := 0; i < len(toolCallMap); i++ {
+		tc, ok := toolCallMap[i]
+		if !ok {
+			continue
+		}
+		arguments := make(map[string]interface{})
+		if argsStr := tc.ArgsAccum.String(); argsStr != "" {
+			if err := json.Unmarshal([]byte(argsStr), &arguments); err != nil {
+				arguments["raw"] = argsStr
+			}
+		}
+		toolCalls = append(toolCalls, ToolCall{
+			ID:        tc.ID,
+			Name:      tc.Name,
+			Arguments: arguments,
+		})
+	}
+
+	return &LLMResponse{
+		Content:          contentBuilder.String(),
+		ReasoningContent: reasoningBuilder.String(),
+		ToolCalls:        toolCalls,
+		FinishReason:     finishReason,
+		Usage:            usage,
+	}, nil
 }
 
 func (p *HTTPProvider) parseResponse(body []byte) (*LLMResponse, error) {
 	var apiResponse struct {
 		Choices []struct {
 			Message struct {
-				Content   string `json:"content"`
-				ToolCalls []struct {
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content"`
+				ToolCalls        []struct {
 					ID       string `json:"id"`
 					Type     string `json:"type"`
 					Function *struct {
@@ -186,10 +335,11 @@ func (p *HTTPProvider) parseResponse(body []byte) (*LLMResponse, error) {
 	}
 
 	return &LLMResponse{
-		Content:      choice.Message.Content,
-		ToolCalls:    toolCalls,
-		FinishReason: choice.FinishReason,
-		Usage:        apiResponse.Usage,
+		Content:          choice.Message.Content,
+		ReasoningContent: choice.Message.ReasoningContent,
+		ToolCalls:        toolCalls,
+		FinishReason:     choice.FinishReason,
+		Usage:            apiResponse.Usage,
 	}, nil
 }
 
