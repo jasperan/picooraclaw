@@ -92,6 +92,15 @@ progress.md
 .crush/
 .openhands/
 .serena/
+.omc/
 
 # Generated content (local only)
 content/
+
+# Terraform local state / plugin cache (never commit)
+deploy/oci/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+
+# Remotion generated video / preview output (regenerable)
+remotion/out/
