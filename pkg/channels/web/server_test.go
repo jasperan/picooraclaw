@@ -80,3 +80,36 @@ func TestHandleEvents_StreamsSSE(t *testing.T) {
 		t.Fatalf("stream missing expected events; got:\n%s", out)
 	}
 }
+
+func TestHandleChat_PublishesInboundToBus(t *testing.T) {
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	body := `{"session_id":"s1","text":"hello"}`
+	resp, err := http.Post(srv.URL+"/v1/chat", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("want 202, got %d", resp.StatusCode)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	msg, ok := msgBus.ConsumeInbound(ctx)
+	if !ok {
+		t.Fatal("expected inbound message on bus, got none")
+	}
+	if msg.Content != "hello" || msg.SessionKey != "s1" || msg.Channel != "web" {
+		t.Fatalf("unexpected inbound: %+v", msg)
+	}
+}

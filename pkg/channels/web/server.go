@@ -4,7 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/jasperan/picooraclaw/pkg/bus"
 )
+
+type chatRequest struct {
+	SessionID string `json:"session_id"`
+	Text      string `json:"text"`
+	Workspace string `json:"workspace,omitempty"`
+}
+
+type chatResponse struct {
+	MessageID string `json:"message_id"`
+}
 
 func (c *Channel) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/chat", c.handleChat)
@@ -72,7 +85,33 @@ func (c *Channel) handleEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Channel) handleChat(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req chatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if req.SessionID == "" || req.Text == "" {
+		http.Error(w, "session_id and text are required", http.StatusBadRequest)
+		return
+	}
+
+	c.bus.PublishInbound(bus.InboundMessage{
+		Channel:    "web",
+		SenderID:   "web-user",
+		ChatID:     req.SessionID,
+		Content:    req.Text,
+		SessionKey: req.SessionID,
+		Metadata:   map[string]string{"workspace": req.Workspace},
+	})
+
+	mid := fmt.Sprintf("m_%d", time.Now().UnixNano())
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(chatResponse{MessageID: mid})
 }
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "not implemented", http.StatusNotImplemented)
