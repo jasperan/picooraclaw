@@ -15,14 +15,27 @@ import (
 	"github.com/jasperan/picooraclaw/pkg/logger"
 )
 
+type SessionLister interface {
+	ListSessions() []SessionInfo
+	CreateSession(title string) (SessionInfo, error)
+	DeleteSession(id string) error
+}
+
+type SessionInfo struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	LastAt int64  `json:"last_at"`
+}
+
 type Channel struct {
-	cfg     config.WebConfig
-	bus     *bus.MessageBus
-	broker  *EventBroker
-	server  *http.Server
-	mu      sync.RWMutex
-	running bool
-	addr    string
+	cfg      config.WebConfig
+	bus      *bus.MessageBus
+	broker   *EventBroker
+	server   *http.Server
+	mu       sync.RWMutex
+	running  bool
+	addr     string
+	sessions SessionLister
 }
 
 func NewChannel(cfg config.WebConfig, msgBus *bus.MessageBus) (*Channel, error) {
@@ -105,6 +118,10 @@ func (c *Channel) setRunning(v bool) {
 	defer c.mu.Unlock()
 	c.running = v
 }
+
+// SetSessions attaches a session-store backend. Safe to call before Start().
+// When unset, GET returns an empty list and POST/DELETE return 503.
+func (c *Channel) SetSessions(s SessionLister) { c.sessions = s }
 
 // Emit satisfies agent.EventEmitter by forwarding into the broker.
 func (c *Channel) Emit(e agent.Event) {

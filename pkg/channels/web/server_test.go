@@ -3,6 +3,8 @@ package web
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -115,4 +117,75 @@ func TestHandleChat_PublishesInboundToBus(t *testing.T) {
 	if _, has := msg.Metadata["workspace"]; has {
 		t.Errorf("expected no workspace key in metadata, got %v", msg.Metadata)
 	}
+}
+
+type fakeSessions struct{ items []SessionInfo }
+
+func (f *fakeSessions) ListSessions() []SessionInfo { return f.items }
+
+func (f *fakeSessions) CreateSession(t string) (SessionInfo, error) {
+	s := SessionInfo{ID: "s_new", Title: t, LastAt: 1}
+	f.items = append(f.items, s)
+	return s, nil
+}
+
+func (f *fakeSessions) DeleteSession(id string) error {
+	for i, s := range f.items {
+		if s.ID == id {
+			f.items = append(f.items[:i], f.items[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("not found")
+}
+
+func TestHandleSessions_ListCreateDelete(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeSessions{items: []SessionInfo{{ID: "s1", Title: "one", LastAt: 10}}}
+	ch.SetSessions(f)
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	// GET
+	resp, err := http.Get(srv.URL + "/v1/sessions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("GET status %d", resp.StatusCode)
+	}
+	var got []SessionInfo
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	resp.Body.Close()
+	if len(got) != 1 || got[0].ID != "s1" {
+		t.Fatalf("list: %+v", got)
+	}
+
+	// POST
+	resp, err = http.Post(srv.URL+"/v1/sessions", "application/json", strings.NewReader(`{"title":"two"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 201 {
+		t.Fatalf("POST status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// DELETE
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/v1/sessions?id=s1", nil)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 204 {
+		t.Fatalf("DELETE status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
 }

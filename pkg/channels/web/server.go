@@ -119,7 +119,45 @@ func (c *Channel) handleChat(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(chatResponse{MessageID: mid})
 }
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	switch r.Method {
+	case http.MethodGet:
+		var list []SessionInfo
+		if c.sessions != nil {
+			list = c.sessions.ListSessions()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(list)
+	case http.MethodPost:
+		if c.sessions == nil {
+			http.Error(w, "sessions not configured", http.StatusServiceUnavailable)
+			return
+		}
+		var body struct {
+			Title string `json:"title"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		s, err := c.sessions.CreateSession(body.Title)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(s)
+	case http.MethodDelete:
+		if c.sessions == nil {
+			http.Error(w, "sessions not configured", http.StatusServiceUnavailable)
+			return
+		}
+		id := r.URL.Query().Get("id")
+		if err := c.sessions.DeleteSession(id); err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 func (c *Channel) handleMemory(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "not implemented", http.StatusNotImplemented)
