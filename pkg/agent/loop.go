@@ -856,7 +856,11 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 					}
 				}
 				if len(resultStr) > 4096 {
-					resultStr = resultStr[:4096] + "…[truncated]"
+					i := 4096
+					for i > 0 && !utf8.RuneStart(resultStr[i]) {
+						i--
+					}
+					resultStr = resultStr[:i] + "…[truncated]"
 				}
 				emitter.Emit(Event{
 					Type:       EventToolCallEnd,
