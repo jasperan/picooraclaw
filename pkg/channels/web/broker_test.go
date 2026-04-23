@@ -46,6 +46,31 @@ func TestEventBroker_ResumeFromCursor(t *testing.T) {
 	}
 }
 
+func TestEventBroker_NoSendOnClosed(t *testing.T) {
+	b := NewEventBroker()
+	const N = 20
+	subs := make([]*Subscription, N)
+	for i := range subs {
+		subs[i] = b.Subscribe("s1", "")
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 100; i++ {
+			b.Emit(Event{Type: "t", SessionID: "s1", MessageID: "m"})
+		}
+	}()
+	// Unsubscribe half concurrently
+	for i := 0; i < N/2; i++ {
+		b.Unsubscribe(subs[i])
+	}
+	<-done
+	// If we reach here without panicking, the fix works.
+	for i := N / 2; i < N; i++ {
+		b.Unsubscribe(subs[i])
+	}
+}
+
 func recv(t *testing.T, c <-chan Event) Event {
 	t.Helper()
 	select {

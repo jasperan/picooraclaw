@@ -46,6 +46,7 @@ func NewEventBroker() *EventBroker {
 }
 
 func (b *EventBroker) Emit(e Event) {
+	// Step 1: buffer update under WLock
 	b.mu.Lock()
 	buf := b.buffers[e.SessionID]
 	buf = append(buf, e)
@@ -53,10 +54,16 @@ func (b *EventBroker) Emit(e Event) {
 		buf = buf[len(buf)-bufferPerSession:]
 	}
 	b.buffers[e.SessionID] = buf
-	subs := b.subs[e.SessionID]
 	b.mu.Unlock()
 
-	for _, s := range subs {
+	// Step 2: fan-out under RLock — serialises with Unsubscribe's WLock so we
+	// never send on a closed channel. Unsubscribe removes the sub from the map
+	// and closes the channel under WLock; by holding RLock here we are
+	// guaranteed to either see the sub (safe to send) or not see it (already
+	// removed before close).
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	for _, s := range b.subs[e.SessionID] {
 		select {
 		case s.C <- e:
 		default:
