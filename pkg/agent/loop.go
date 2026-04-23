@@ -45,6 +45,7 @@ type AgentLoop struct {
 	running                   atomic.Bool
 	summarizing               sync.Map // Tracks which sessions are currently being summarized
 	channelManager            channelManagerInterface
+	emitter                   EventEmitter // Structured event emitter (defaults to NoopEmitter)
 }
 
 // channelManagerInterface allows the agent loop to query enabled channels.
@@ -208,7 +209,18 @@ func newAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers
 		contextBuilder:            contextBuilder,
 		tools:                     toolsRegistry,
 		summarizing:               sync.Map{},
+		emitter:                   NoopEmitter{},
 	}
+}
+
+// SetEventEmitter installs a structured event emitter. Passing nil resets the
+// emitter to a NoopEmitter so call sites can always emit without nil checks.
+func (al *AgentLoop) SetEventEmitter(e EventEmitter) {
+	if e == nil {
+		al.emitter = NoopEmitter{}
+		return
+	}
+	al.emitter = e
 }
 
 // SetPromptStore sets an Oracle-backed prompt store on the context builder.
