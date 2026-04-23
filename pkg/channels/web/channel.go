@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jasperan/picooraclaw/pkg/agent"
 	"github.com/jasperan/picooraclaw/pkg/bus"
 	"github.com/jasperan/picooraclaw/pkg/config"
 	"github.com/jasperan/picooraclaw/pkg/logger"
@@ -103,4 +104,29 @@ func (c *Channel) setRunning(v bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.running = v
+}
+
+// Emit satisfies agent.EventEmitter by forwarding into the broker.
+func (c *Channel) Emit(e agent.Event) {
+	c.broker.Emit(Event{
+		Type:       string(e.Type),
+		SessionID:  e.SessionID,
+		MessageID:  e.MessageID,
+		ToolCallID: e.ToolCallID,
+		Tool:       e.ToolName,
+		Args:       e.Args,
+		Result:     e.Result,
+		OK:         e.OK,
+		Text:       e.Text,
+		Error:      e.Error,
+		Note:       e.Note,
+		Timestamp:  e.Timestamp,
+	})
+}
+
+// muxForTest exposes the internal mux for tests only.
+func (c *Channel) muxForTest() *http.ServeMux {
+	m := http.NewServeMux()
+	c.registerRoutes(m)
+	return m
 }
