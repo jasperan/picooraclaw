@@ -123,6 +123,11 @@ func (c *Channel) IsRunning() bool {
 	return c.running
 }
 
+// IsAllowed returns true for all senders. The web channel is a trusted local
+// HTTP endpoint; access control is enforced at the transport layer (bind
+// address, auth middleware) rather than per-message.
+func (c *Channel) IsAllowed(senderID string) bool { return true }
+
 func (c *Channel) Addr() string { return c.addr }
 
 func (c *Channel) setRunning(v bool) {

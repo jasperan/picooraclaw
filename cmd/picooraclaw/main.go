@@ -27,6 +27,7 @@ import (
 	"github.com/jasperan/picooraclaw/pkg/auth"
 	"github.com/jasperan/picooraclaw/pkg/bus"
 	"github.com/jasperan/picooraclaw/pkg/channels"
+	"github.com/jasperan/picooraclaw/pkg/channels/web"
 	"github.com/jasperan/picooraclaw/pkg/config"
 	"github.com/jasperan/picooraclaw/pkg/cron"
 	"github.com/jasperan/picooraclaw/pkg/devices"
@@ -388,7 +389,7 @@ func agentCmd() {
 	var oracleConn *oracledb.ConnectionManager
 
 	if cfg.Oracle.Enabled {
-		agentLoop, oracleConn, err = initOracleAgent(cfg, msgBus, provider)
+		agentLoop, oracleConn, _, err = initOracleAgent(cfg, msgBus, provider)
 		if err != nil {
 			fmt.Printf("Oracle initialization failed: %v\n", err)
 			fmt.Println("Falling back to file-based storage...")
@@ -511,13 +512,16 @@ func simpleInteractiveMode(agentLoop *agent.AgentLoop, sessionKey string) {
 }
 
 func gatewayCmd() {
-	// Check for --debug flag
+	// Check for --debug and --enable-web flags
 	args := os.Args[2:]
+	enableWeb := false
 	for _, arg := range args {
 		if arg == "--debug" || arg == "-d" {
 			logger.SetLevel(logger.DEBUG)
 			fmt.Println("🔍 Debug mode enabled")
-			break
+		}
+		if arg == "--enable-web" {
+			enableWeb = true
 		}
 	}
 
@@ -525,6 +529,9 @@ func gatewayCmd() {
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)
+	}
+	if enableWeb {
+		cfg.Channels.Web.Enabled = true
 	}
 
 	provider, err := providers.CreateProvider(cfg)
@@ -537,9 +544,10 @@ func gatewayCmd() {
 
 	var agentLoop *agent.AgentLoop
 	var oracleConn *oracledb.ConnectionManager
+	var oraStores *oracleStores
 
 	if cfg.Oracle.Enabled {
-		agentLoop, oracleConn, err = initOracleAgent(cfg, msgBus, provider)
+		agentLoop, oracleConn, oraStores, err = initOracleAgent(cfg, msgBus, provider)
 		if err != nil {
 			fmt.Printf("Oracle initialization failed: %v\n", err)
 			fmt.Println("Falling back to file-based storage...")
@@ -626,6 +634,19 @@ func gatewayCmd() {
 			if sc, ok := slackChannel.(*channels.SlackChannel); ok {
 				sc.SetTranscriber(transcriber)
 				logger.InfoC("voice", "Groq transcription attached to Slack channel")
+			}
+		}
+	}
+
+	if cfg.Channels.Web.Enabled {
+		if webChannel, ok := channelManager.GetChannel("web"); ok {
+			if wc, ok := webChannel.(*web.Channel); ok {
+				agentLoop.SetEventEmitter(wc)
+				wc.SetSessions(&webSessionAdapter{})
+				if oraStores != nil {
+					wc.SetMemory(&webMemoryAdapter{m: oraStores.memory})
+				}
+				logger.InfoC("web", "Web channel wired (events + sessions + memory)")
 			}
 		}
 	}
@@ -1575,11 +1596,18 @@ func setupOracleCmd() {
 	fmt.Println("\n🎉 Oracle setup complete! picooraclaw is ready to use Oracle AI Database.")
 }
 
+// oracleStores bundles Oracle-backed stores exposed to gatewayCmd so downstream
+// wiring (web channel adapters, etc.) can reach the memory store directly.
+type oracleStores struct {
+	session *oracledb.SessionStore
+	memory  *oracledb.MemoryStore
+}
+
 // initOracleAgent creates an agent loop with Oracle-backed stores.
-func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider providers.LLMProvider) (*agent.AgentLoop, *oracledb.ConnectionManager, error) {
+func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider providers.LLMProvider) (*agent.AgentLoop, *oracledb.ConnectionManager, *oracleStores, error) {
 	conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Oracle connection failed: %w", err)
+		return nil, nil, nil, fmt.Errorf("Oracle connection failed: %w", err)
 	}
 
 	db := conn.DB()
@@ -1595,7 +1623,7 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 		embSvc, embErr = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
 		if embErr != nil {
 			logger.ErrorCF("oracle", "Failed to create embedding service", map[string]interface{}{"error": embErr.Error()})
-			return nil, nil, fmt.Errorf("failed to create embedding service: %w", embErr)
+			return nil, nil, nil, fmt.Errorf("failed to create embedding service: %w", embErr)
 		}
 		logger.InfoC("oracle", "Using in-database ONNX embedding service")
 	}
@@ -1620,7 +1648,7 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 	agentLoop.SetPromptStore(promptStore)
 
 	logger.InfoC("oracle", "Oracle stores initialized")
-	return agentLoop, conn, nil
+	return agentLoop, conn, &oracleStores{session: sessionStore, memory: memoryStore}, nil
 }
 
 // recallAdapter adapts oracle.MemoryStore to tools.Recaller interface.
@@ -2535,4 +2563,48 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// webSessionAdapter satisfies web.SessionLister with a minimal in-memory stub.
+// The gateway has no first-class session catalog yet; ListSessions returns
+// empty, CreateSession mints an ID, and DeleteSession is a no-op. Actual
+// message history still flows through the bus/agent loop.
+type webSessionAdapter struct{}
+
+func (a *webSessionAdapter) ListSessions() []web.SessionInfo { return []web.SessionInfo{} }
+
+func (a *webSessionAdapter) CreateSession(title string) (web.SessionInfo, error) {
+	return web.SessionInfo{
+		ID:     fmt.Sprintf("s_%d", time.Now().UnixNano()),
+		Title:  title,
+		LastAt: time.Now().Unix(),
+	}, nil
+}
+
+func (a *webSessionAdapter) DeleteSession(id string) error { return nil }
+
+// webMemoryAdapter satisfies web.MemorySearcher by delegating to the Oracle
+// memory store's vector Recall. Returns nil on query errors so /v1/memory
+// responds with an empty array rather than a 5xx.
+type webMemoryAdapter struct {
+	m *oracledb.MemoryStore
+}
+
+func (a *webMemoryAdapter) Search(q string, n int) []web.MemoryResult {
+	if a == nil || a.m == nil {
+		return nil
+	}
+	recs, err := a.m.Recall(q, n)
+	if err != nil {
+		return nil
+	}
+	out := make([]web.MemoryResult, 0, len(recs))
+	for _, r := range recs {
+		out = append(out, web.MemoryResult{
+			ID:    r.MemoryID,
+			Text:  r.Text,
+			Score: r.Score,
+		})
+	}
+	return out
 }

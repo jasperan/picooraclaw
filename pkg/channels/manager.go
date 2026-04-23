@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jasperan/picooraclaw/pkg/bus"
+	"github.com/jasperan/picooraclaw/pkg/channels/web"
 	"github.com/jasperan/picooraclaw/pkg/config"
 	"github.com/jasperan/picooraclaw/pkg/constants"
 	"github.com/jasperan/picooraclaw/pkg/logger"
@@ -75,6 +76,8 @@ func (m *Manager) initChannels() error {
 			func() (Channel, error) { return NewLINEChannel(m.config.Channels.LINE, m.bus) }},
 		{"onebot", m.config.Channels.OneBot.Enabled && m.config.Channels.OneBot.WSUrl != "",
 			func() (Channel, error) { return NewOneBotChannel(m.config.Channels.OneBot, m.bus) }},
+		{"web", m.config.Channels.Web.Enabled,
+			func() (Channel, error) { return web.NewChannel(m.config.Channels.Web, m.bus) }},
 	}
 
 	for _, entry := range entries {
