@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jasperan/picooraclaw/pkg/bus"
@@ -174,5 +175,29 @@ func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (c *Channel) handleMemory(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	if c.memory == nil {
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	q := r.URL.Query().Get("q")
+	limit := 20
+	if v := r.URL.Query().Get("limit"); v != "" {
+		// best-effort int parse; bad input falls back to default
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	results := c.memory.Search(q, limit)
+	if results == nil {
+		results = []MemoryResult{}
+	}
+	_ = json.NewEncoder(w).Encode(results)
 }

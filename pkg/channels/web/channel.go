@@ -27,6 +27,17 @@ type SessionInfo struct {
 	LastAt int64  `json:"last_at"`
 }
 
+type MemorySearcher interface {
+	Search(query string, limit int) []MemoryResult
+}
+
+type MemoryResult struct {
+	ID    string  `json:"id"`
+	Text  string  `json:"text"`
+	Score float64 `json:"score"`
+	Date  int64   `json:"date"`
+}
+
 type Channel struct {
 	cfg      config.WebConfig
 	bus      *bus.MessageBus
@@ -36,6 +47,7 @@ type Channel struct {
 	running  bool
 	addr     string
 	sessions SessionLister
+	memory   MemorySearcher
 }
 
 func NewChannel(cfg config.WebConfig, msgBus *bus.MessageBus) (*Channel, error) {
@@ -122,6 +134,10 @@ func (c *Channel) setRunning(v bool) {
 // SetSessions attaches a session-store backend. Safe to call before Start().
 // When unset, GET returns an empty list and POST/DELETE return 503.
 func (c *Channel) SetSessions(s SessionLister) { c.sessions = s }
+
+// SetMemory attaches a memory-search backend. Safe to call before Start().
+// When unset, /v1/memory returns an empty JSON array.
+func (c *Channel) SetMemory(m MemorySearcher) { c.memory = m }
 
 // Emit satisfies agent.EventEmitter by forwarding into the broker.
 func (c *Channel) Emit(e agent.Event) {

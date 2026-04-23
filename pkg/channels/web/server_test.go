@@ -287,3 +287,135 @@ func TestHandleSessions_PostMalformedJSON_Returns400(t *testing.T) {
 		t.Fatalf("want 400, got %d", resp.StatusCode)
 	}
 }
+
+type fakeMemory struct{}
+
+func (fakeMemory) Search(q string, n int) []MemoryResult {
+	return []MemoryResult{{ID: "m_1", Text: "user likes " + q, Score: 0.9, Date: 1}}
+}
+
+func TestHandleMemory_Search(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetMemory(fakeMemory{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/memory?q=go&limit=5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	var got []MemoryResult
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if len(got) != 1 || !strings.Contains(got[0].Text, "go") {
+		t.Fatalf("unexpected: %+v", got)
+	}
+}
+
+func TestHandleMemory_NoBackendReturnsEmptyArray(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// no SetMemory
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/memory?q=anything")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(body)) != "[]" {
+		t.Fatalf("expected [], got %q", string(body))
+	}
+}
+
+func TestHandleMemory_MethodNotAllowed(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/v1/memory", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleMemory_BadLimitFallsBackToDefault(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetMemory(fakeMemory{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	// garbage limit should not 500 — falls back to default
+	resp, err := http.Get(srv.URL + "/v1/memory?q=x&limit=not-a-number")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+}
+
+func TestHandleMemory_NilResultsReturnsEmptyArray(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetMemory(nilMemory{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/memory?q=x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(body)) != "[]" {
+		t.Fatalf("expected [], got %q", string(body))
+	}
+}
+
+type nilMemory struct{}
+
+func (nilMemory) Search(q string, n int) []MemoryResult { return nil }
