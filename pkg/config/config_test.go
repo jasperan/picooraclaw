@@ -130,13 +130,22 @@ func TestDefaultConfig_Channels(t *testing.T) {
 	if cfg.Channels.Slack.Enabled {
 		t.Error("Slack should be disabled by default")
 	}
+	if cfg.Channels.Web.Enabled {
+		t.Error("Web should be disabled by default")
+	}
 }
 
-// TestDefaultConfig_Web verifies the web channel is disabled by default
+// TestDefaultConfig_Web verifies the web channel is disabled by default with populated host/port
 func TestDefaultConfig_Web(t *testing.T) {
 	cfg := DefaultConfig()
 	if cfg.Channels.Web.Enabled {
 		t.Error("Web should be disabled by default")
+	}
+	if cfg.Channels.Web.Host != "0.0.0.0" {
+		t.Errorf("Web host default = %q, want 0.0.0.0", cfg.Channels.Web.Host)
+	}
+	if cfg.Channels.Web.Port != 8090 {
+		t.Errorf("Web port default = %d, want 8090", cfg.Channels.Web.Port)
 	}
 }
 

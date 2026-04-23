@@ -355,9 +355,10 @@ func DefaultConfig() *Config {
 				GroupTriggerPrefix: []string{},
 				AllowFrom:          FlexibleStringSlice{},
 			},
-			// Web defaults are applied lazily in LoadConfig when Enabled=true;
-			// the zero value keeps Enabled=false so the channel stays off unless opted in.
-			Web: WebConfig{},
+			Web: WebConfig{
+				Host: "0.0.0.0",
+				Port: 8090,
+			},
 		},
 		Providers: ProvidersConfig{
 			Anthropic:  ProviderConfig{},
@@ -441,16 +442,6 @@ func LoadConfig(path string) (*Config, error) {
 
 	if err := env.Parse(cfg); err != nil {
 		return nil, err
-	}
-
-	// Apply runtime defaults for the web channel only when enabled.
-	if cfg.Channels.Web.Enabled {
-		if cfg.Channels.Web.Host == "" {
-			cfg.Channels.Web.Host = "0.0.0.0"
-		}
-		if cfg.Channels.Web.Port == 0 {
-			cfg.Channels.Web.Port = 8090
-		}
 	}
 
 	return cfg, nil
