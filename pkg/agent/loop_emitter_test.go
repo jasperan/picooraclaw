@@ -36,3 +36,10 @@ func TestAgentLoop_SetEventEmitter_NilFallsBackToNoop(t *testing.T) {
 	// Should not panic.
 	al.emitter.Emit(Event{Type: EventMessageStart, SessionID: "x"})
 }
+
+// TestAgentLoop_EmitsMessageLifecycleEvents is a scaffold. The full integration
+// with a fake provider driving processMessage through a tool call and back is
+// covered in Task 13. This placeholder documents the intent.
+func TestAgentLoop_EmitsMessageLifecycleEvents(t *testing.T) {
+	t.Skip("wire in with fake provider in integration test; scaffolding only for now")
+}

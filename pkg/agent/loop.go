@@ -64,6 +64,7 @@ type processOptions struct {
 	EnableSummary   bool   // Whether to trigger summarization
 	SendResponse    bool   // Whether to send response via bus
 	NoHistory       bool   // If true, don't load session history (for heartbeat)
+	MessageID       string // Structured event message ID for this turn
 }
 
 // createToolRegistry creates a tool registry with common tools.
@@ -342,18 +343,62 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 			"session_key": msg.SessionKey,
 		})
 
+	// Snapshot the emitter once per turn so all emissions use the same instance,
+	// even if SetEventEmitter is called mid-turn. SetEventEmitter's contract says
+	// it's safe to call before Start(); this snapshot protects any reader here.
+	emitter := al.emitter
+	if emitter == nil {
+		emitter = NoopEmitter{}
+	}
+
+	// Generate a message ID for this turn. Tool events reuse the same ID so
+	// consumers can correlate start/tool/end for a single user turn.
+	messageID := fmt.Sprintf("m_%d", time.Now().UnixNano())
+
+	emitter.Emit(Event{
+		Type:      EventMessageStart,
+		SessionID: msg.SessionKey,
+		MessageID: messageID,
+		Timestamp: time.Now(),
+	})
+
 	// Route system messages to processSystemMessage
 	if msg.Channel == "system" {
-		return al.processSystemMessage(ctx, msg)
+		result, err := al.processSystemMessage(ctx, msg)
+		if err != nil {
+			emitter.Emit(Event{
+				Type:      EventError,
+				SessionID: msg.SessionKey,
+				MessageID: messageID,
+				Error:     err.Error(),
+				Timestamp: time.Now(),
+			})
+			return result, err
+		}
+		emitter.Emit(Event{
+			Type:      EventMessageEnd,
+			SessionID: msg.SessionKey,
+			MessageID: messageID,
+			Text:      result,
+			Timestamp: time.Now(),
+		})
+		return result, nil
 	}
 
 	// Check for slash commands
 	if response, handled := al.handleCommand(ctx, msg); handled {
+		emitter.Emit(Event{
+			Type:      EventMessageEnd,
+			SessionID: msg.SessionKey,
+			MessageID: messageID,
+			Text:      response,
+			Timestamp: time.Now(),
+		})
 		return response, nil
 	}
 
 	// Process as user message
-	return al.runAgentLoop(ctx, processOptions{
+	result, err := al.runAgentLoop(ctx, processOptions{
 		SessionKey:      msg.SessionKey,
 		Channel:         msg.Channel,
 		ChatID:          msg.ChatID,
@@ -361,7 +406,26 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 		DefaultResponse: "I've completed processing but have no response to give.",
 		EnableSummary:   true,
 		SendResponse:    false,
+		MessageID:       messageID,
 	})
+	if err != nil {
+		emitter.Emit(Event{
+			Type:      EventError,
+			SessionID: msg.SessionKey,
+			MessageID: messageID,
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		})
+		return result, err
+	}
+	emitter.Emit(Event{
+		Type:      EventMessageEnd,
+		SessionID: msg.SessionKey,
+		MessageID: messageID,
+		Text:      result,
+		Timestamp: time.Now(),
+	})
+	return result, nil
 }
 
 func (al *AgentLoop) processSystemMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
@@ -759,8 +823,51 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 					})
 				}
 
+				// Emit tool_call_start before execution. Snapshot emitter once to
+				// keep this turn's emissions consistent even if SetEventEmitter
+				// races (contract says don't, but cheap insurance).
+				emitter := al.emitter
+				if emitter == nil {
+					emitter = NoopEmitter{}
+				}
+				emitter.Emit(Event{
+					Type:       EventToolCallStart,
+					SessionID:  opts.SessionKey,
+					MessageID:  opts.MessageID,
+					ToolCallID: tc.ID,
+					ToolName:   tc.Name,
+					Args:       tc.Arguments,
+					Timestamp:  time.Now(),
+				})
+
 				toolResult := al.tools.ExecuteWithContext(ctx, tc.Name, tc.Arguments, opts.Channel, opts.ChatID, asyncCallback)
 				toolResults[idx].result = toolResult
+
+				// Build result + ok fields for tool_call_end.
+				var resultStr string
+				ok := true
+				if toolResult != nil && toolResult.Err != nil {
+					resultStr = toolResult.Err.Error()
+					ok = false
+				} else if toolResult != nil {
+					resultStr = toolResult.ForLLM
+					if resultStr == "" {
+						resultStr = toolResult.ForUser
+					}
+				}
+				if len(resultStr) > 4096 {
+					resultStr = resultStr[:4096] + "…[truncated]"
+				}
+				emitter.Emit(Event{
+					Type:       EventToolCallEnd,
+					SessionID:  opts.SessionKey,
+					MessageID:  opts.MessageID,
+					ToolCallID: tc.ID,
+					ToolName:   tc.Name,
+					Result:     resultStr,
+					OK:         &ok,
+					Timestamp:  time.Now(),
+				})
 			}(i, tc)
 		}
 		wg.Wait()
