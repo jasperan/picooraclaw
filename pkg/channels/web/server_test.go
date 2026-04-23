@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -188,4 +189,101 @@ func TestHandleSessions_ListCreateDelete(t *testing.T) {
 		t.Fatalf("DELETE status %d", resp.StatusCode)
 	}
 	resp.Body.Close()
+}
+
+func TestHandleSessions_NoBackend_GetReturnsEmptyArray(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// no SetSessions — sessions is nil
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/sessions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("want 200, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(body)) != "[]" {
+		t.Fatalf("want empty JSON array, got: %q", string(body))
+	}
+}
+
+func TestHandleSessions_DeleteMissingID_Returns400(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetSessions(&fakeSessions{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/v1/sessions", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSessions_PostEmptyTitle_Returns400(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetSessions(&fakeSessions{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/v1/sessions", "application/json", strings.NewReader(`{"title":""}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSessions_PostMalformedJSON_Returns400(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetSessions(&fakeSessions{})
+
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/v1/sessions", "application/json", strings.NewReader(`{`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("want 400, got %d", resp.StatusCode)
+	}
 }

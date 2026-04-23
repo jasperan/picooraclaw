@@ -121,9 +121,12 @@ func (c *Channel) handleChat(w http.ResponseWriter, r *http.Request) {
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		var list []SessionInfo
+		list := []SessionInfo{}
 		if c.sessions != nil {
 			list = c.sessions.ListSessions()
+		}
+		if list == nil {
+			list = []SessionInfo{}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(list)
@@ -135,7 +138,14 @@ func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Title string `json:"title"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if body.Title == "" {
+			http.Error(w, "title required", http.StatusBadRequest)
+			return
+		}
 		s, err := c.sessions.CreateSession(body.Title)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -150,6 +160,10 @@ func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id required", http.StatusBadRequest)
+			return
+		}
 		if err := c.sessions.DeleteSession(id); err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
