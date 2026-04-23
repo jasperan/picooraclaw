@@ -112,4 +112,7 @@ func TestHandleChat_PublishesInboundToBus(t *testing.T) {
 	if msg.Content != "hello" || msg.SessionKey != "s1" || msg.Channel != "web" {
 		t.Fatalf("unexpected inbound: %+v", msg)
 	}
+	if _, has := msg.Metadata["workspace"]; has {
+		t.Errorf("expected no workspace key in metadata, got %v", msg.Metadata)
+	}
 }

@@ -99,13 +99,18 @@ func (c *Channel) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	meta := map[string]string{}
+	if req.Workspace != "" {
+		meta["workspace"] = req.Workspace
+	}
+
 	c.bus.PublishInbound(bus.InboundMessage{
 		Channel:    "web",
 		SenderID:   "web-user",
 		ChatID:     req.SessionID,
 		Content:    req.Text,
 		SessionKey: req.SessionID,
-		Metadata:   map[string]string{"workspace": req.Workspace},
+		Metadata:   meta,
 	})
 
 	mid := fmt.Sprintf("m_%d", time.Now().UnixNano())
