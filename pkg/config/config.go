@@ -89,6 +89,14 @@ type ChannelsConfig struct {
 	Slack    SlackConfig    `json:"slack"`
 	LINE     LINEConfig     `json:"line"`
 	OneBot   OneBotConfig   `json:"onebot"`
+	Web      WebConfig      `json:"web"`
+}
+
+type WebConfig struct {
+	Enabled bool   `json:"enabled" env:"PICOCLAW_CHANNELS_WEB_ENABLED"`
+	Host    string `json:"host" env:"PICOCLAW_CHANNELS_WEB_HOST"`
+	Port    int    `json:"port" env:"PICOCLAW_CHANNELS_WEB_PORT"`
+	Token   string `json:"token" env:"PICOCLAW_CHANNELS_WEB_TOKEN"`
 }
 
 type WhatsAppConfig struct {
@@ -347,6 +355,9 @@ func DefaultConfig() *Config {
 				GroupTriggerPrefix: []string{},
 				AllowFrom:          FlexibleStringSlice{},
 			},
+			// Web defaults are applied lazily in LoadConfig when Enabled=true;
+			// the zero value keeps Enabled=false so the channel stays off unless opted in.
+			Web: WebConfig{},
 		},
 		Providers: ProvidersConfig{
 			Anthropic:  ProviderConfig{},
@@ -430,6 +441,16 @@ func LoadConfig(path string) (*Config, error) {
 
 	if err := env.Parse(cfg); err != nil {
 		return nil, err
+	}
+
+	// Apply runtime defaults for the web channel only when enabled.
+	if cfg.Channels.Web.Enabled {
+		if cfg.Channels.Web.Host == "" {
+			cfg.Channels.Web.Host = "0.0.0.0"
+		}
+		if cfg.Channels.Web.Port == 0 {
+			cfg.Channels.Web.Port = 8090
+		}
 	}
 
 	return cfg, nil

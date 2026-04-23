@@ -132,6 +132,14 @@ func TestDefaultConfig_Channels(t *testing.T) {
 	}
 }
 
+// TestDefaultConfig_Web verifies the web channel is disabled by default
+func TestDefaultConfig_Web(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg.Channels.Web.Enabled {
+		t.Error("Web should be disabled by default")
+	}
+}
+
 // TestDefaultConfig_WebTools verifies web tools config
 func TestDefaultConfig_WebTools(t *testing.T) {
 	cfg := DefaultConfig()
