@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -37,6 +38,10 @@ func (c *Channel) Name() string { return "web" }
 func (c *Channel) Broker() *EventBroker { return c.broker }
 
 func (c *Channel) Start(ctx context.Context) error {
+	if c.IsRunning() {
+		return errors.New("web channel already running")
+	}
+
 	mux := http.NewServeMux()
 	c.registerRoutes(mux)
 
@@ -45,18 +50,23 @@ func (c *Channel) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("web channel listen %s: %w", addr, err)
 	}
-	c.addr = ln.Addr().String()
 
-	c.server = &http.Server{
+	srv := &http.Server{
 		Handler:           c.authMiddleware(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	c.setRunning(true)
+	c.mu.Lock()
+	c.addr = ln.Addr().String()
+	c.server = srv
+	c.running = true
+	c.mu.Unlock()
+
 	logger.InfoCF("web", "web channel listening", map[string]interface{}{"addr": c.addr})
 
 	go func() {
-		if err := c.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+		defer c.setRunning(false)
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			logger.ErrorCF("web", "server error", map[string]interface{}{"error": err.Error()})
 		}
 	}()
@@ -65,12 +75,15 @@ func (c *Channel) Start(ctx context.Context) error {
 
 func (c *Channel) Stop(ctx context.Context) error {
 	c.setRunning(false)
-	if c.server == nil {
+	c.mu.RLock()
+	srv := c.server
+	c.mu.RUnlock()
+	if srv == nil {
 		return nil
 	}
 	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return c.server.Shutdown(shutdownCtx)
+	return srv.Shutdown(shutdownCtx)
 }
 
 func (c *Channel) Send(ctx context.Context, msg bus.OutboundMessage) error {
