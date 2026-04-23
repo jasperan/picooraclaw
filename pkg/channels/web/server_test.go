@@ -419,3 +419,46 @@ func TestHandleMemory_NilResultsReturnsEmptyArray(t *testing.T) {
 type nilMemory struct{}
 
 func (nilMemory) Search(q string, n int) []MemoryResult { return nil }
+
+func TestAuthMiddleware_RejectsWrongToken(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0, Token: "secret"}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, _ := NewChannel(cfg, msgBus)
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	// No header → 401
+	resp, err := http.Get(srv.URL + "/v1/sessions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("no-auth status %d, want 401", resp.StatusCode)
+	}
+
+	// Wrong header → 401
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/v1/sessions", nil)
+	req.Header.Set("Authorization", "Bearer nope")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("wrong-token status %d, want 401", resp.StatusCode)
+	}
+
+	// Correct header → 200 (handleSessions returns [] when no backend)
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/v1/sessions", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("correct-token status %d, want 200", resp.StatusCode)
+	}
+}
