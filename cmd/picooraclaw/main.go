@@ -2596,6 +2596,7 @@ func (a *webMemoryAdapter) Search(q string, n int) []web.MemoryResult {
 	}
 	recs, err := a.m.Recall(q, n)
 	if err != nil {
+		logger.WarnCF("web", "memory search failed", map[string]interface{}{"error": err.Error()})
 		return nil
 	}
 	out := make([]web.MemoryResult, 0, len(recs))
