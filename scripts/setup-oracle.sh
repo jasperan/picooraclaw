@@ -52,7 +52,14 @@ fi
 info "Waiting for database to be ready..."
 TIMEOUT=180
 ELAPSED=0
-while ! docker logs "$CONTAINER_NAME" 2>&1 | grep -q "DATABASE IS READY TO USE"; do
+db_ready() {
+    # First boot prints the marker in container logs; subsequent boots don't.
+    # Fall back to docker's healthcheck status for already-initialized containers.
+    docker logs "$CONTAINER_NAME" 2>&1 | grep -q "DATABASE IS READY TO USE" && return 0
+    [ "$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" = "healthy" ] && return 0
+    return 1
+}
+while ! db_ready; do
     sleep 5
     ELAPSED=$((ELAPSED + 5))
     printf "\r  Waiting... %ds" "$ELAPSED"
@@ -114,7 +121,7 @@ section "Step 5/6: ONNX embedding model"
 info "Downloading Oracle's augmented all-MiniLM-L12-v2 model..."
 ONNX_WORK="/tmp/onnx_model"
 mkdir -p "$ONNX_WORK"
-curl -fsSL "https://adwc4pm.objectstorage.us-ashburn-1.oci.customer-oci.com/p/VBRD9P8ZFWkKvnfhrWxkpPe8K03-JIoM5h_8EJyJcpE80c108fuUjg7R5L5O7mMZ/n/adwc4pm/b/OML-Resources/o/all_MiniLM_L12_v2_augmented.zip" \
+curl -fsSL "${ONNX_URL:-https://adwc4pm.objectstorage.us-ashburn-1.oci.customer-oci.com/p/TtH6hL2y25EypZ0-rrczRZ1aXp7v1ONbRBfCiT-BDBN8WLKQ3lgyW6RxCfIFLdA6/n/adwc4pm/b/OML-ai-models/o/all_MiniLM_L12_v2_augmented.zip}" \
   -o "$ONNX_WORK/model.zip"
 cd "$ONNX_WORK" && unzip -o model.zip && cd -
 ONNX_FILE=$(find "$ONNX_WORK" -name "*.onnx" -type f | head -1)
