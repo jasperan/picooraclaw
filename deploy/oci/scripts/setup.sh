@@ -17,6 +17,8 @@ dnf install -y oracle-epel-release-el9
 dnf install -y podman podman-docker git make gcc wget curl unzip python3 zstd
 # podman-docker provides 'docker' CLI alias for compatibility
 
+# TODO(readme-drift): install the Go version required by go.mod instead of
+# hard-coding an older toolchain.
 # -- 2. Install Go 1.24 --
 echo "--- Installing Go 1.24 ---"
 ARCH=$(uname -m)
@@ -137,6 +139,8 @@ import json, sys
 path, pwd = sys.argv[1], sys.argv[2]
 with open(path) as f:
     cfg = json.load(f)
+# TODO(readme-drift): use the snake_case Oracle JSON keys consumed by
+# pkg/config (onnx_model, agent_id) instead of legacy camelCase aliases.
 cfg.setdefault("oracle", {}).update({
     "enabled": True,
     "mode": "freepdb",
@@ -191,6 +195,8 @@ path, pwd, dsn = sys.argv[1], sys.argv[2], sys.argv[3]
 wallet_path = sys.argv[4] if len(sys.argv) > 4 else ""
 with open(path) as f:
     cfg = json.load(f)
+# TODO(readme-drift): use the snake_case Oracle JSON keys consumed by
+# pkg/config (wallet_path, onnx_model, agent_id) instead of legacy camelCase aliases.
 cfg.setdefault("oracle", {}).update({
     "enabled": True,
     "mode": "adb",

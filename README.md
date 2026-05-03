@@ -6,7 +6,7 @@
   <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search · OCI GenAI (default) · Ollama · Any OpenAI-compatible API</h3>
 
   <p>
-    <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
+    <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
     <img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-blue?style=for-the-badge" alt="Hardware">
     <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
     <img src="https://img.shields.io/badge/backend-Ollama-black?style=for-the-badge" alt="Ollama">
@@ -53,8 +53,8 @@ PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) tha
 <td align="center"><strong>By the Numbers</strong><br><img src="docs/slides/02-pitch.jpg" alt="The Pitch" width="400"/></td>
 </tr>
 <tr>
-<td align="center"><strong>23 Packages</strong><br><img src="docs/slides/04-architecture.jpg" alt="Architecture" width="400"/></td>
-<td align="center"><strong>10 Channels</strong><br><img src="docs/slides/08-channels.jpg" alt="Channels" width="400"/></td>
+<td align="center"><strong>25 Packages</strong><br><img src="docs/slides/04-architecture.jpg" alt="Architecture" width="400"/></td>
+<td align="center"><strong>11 Channels</strong><br><img src="docs/slides/08-channels.jpg" alt="Channels" width="400"/></td>
 </tr>
 <tr>
 <td align="center"><strong>Hardware Tools</strong><br><img src="docs/slides/11-hardware.jpg" alt="Hardware" width="400"/></td>
@@ -121,7 +121,7 @@ Set reminders, run recurring tasks, automate workflows. Scheduled jobs are store
 
 ## Quickstart (5 minutes)
 
-Everything you need: **Go 1.24+** and one of the LLM backends below. Optionally add **Docker** for [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/).
+Everything you need: **Go 1.25+** and one of the LLM backends below. Optionally add **Docker** for [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/).
 
 ### Step 1: Build
 
@@ -214,21 +214,21 @@ Works with OpenAI, OpenRouter, Groq, Anthropic, DeepSeek, or any service that ex
 }
 ```
 
-Swap `api_base` for any compatible endpoint (e.g., `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`). See the [full provider list](#using-a-cloud-llm-instead-of-ollama) below.
+Swap `api_base` for any compatible endpoint (e.g., `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`). See the [full provider list](#using-alternative-llm-providers) below.
 
 </details>
 
 ### Step 3: Chat
 
 ```bash
-# One-shot (with streaming)
-./build/picooraclaw agent --stream -m "Hello!"
+# One-shot
+./build/picooraclaw agent -m "Hello!"
 
 # Interactive mode
 ./build/picooraclaw agent
 ```
 
-That's it. The `--stream` flag shows tokens as they're generated and displays reasoning traces when the model supports them.
+That's it. Use interactive mode when you want an ongoing local session.
 
 ---
 
@@ -240,7 +240,7 @@ Deploy a fully configured PicoOraClaw instance on OCI with Oracle AI Database, O
 
 **What gets deployed:**
 - OCI Compute instance (shape of your choice, ARM A1.Flex is Always Free)
-- Ollama with `gemma3:270m` pre-loaded for CPU inference
+- Ollama with `qwen2.5:3b` pre-loaded for CPU inference
 - **Oracle AI Database 26ai Free** container by default (or optional Autonomous AI Database when toggled)
 - PicoOraClaw gateway running as a systemd service
 
@@ -274,13 +274,14 @@ This single script:
 2. Waits for the database to be ready
 3. Creates the `picooraclaw` database user with the required grants
 4. Patches your `~/.picooraclaw/config.json` with the Oracle connection settings
-5. Runs `picooraclaw setup-oracle` to initialize the schema and load the ONNX embedding model
+5. Downloads and stages the ONNX embedding model
+6. Runs `picooraclaw setup-oracle` to initialize the schema and load the ONNX embedding model
 
 Expected output when complete:
 ```
-── Step 4/4: Schema + ONNX model ─────────────────────────────────────────
+── Step 6/6: Schema + ONNX model ─────────────────────────────────────────
   Running picooraclaw setup-oracle...
-✓ Connected to Oracle AI Database
+✓ Connected to Oracle Database
 ✓ Schema initialized (8 tables with PICO_ prefix)
 ✓ ONNX model 'ALL_MINILM_L12_V2' already loaded
 ✓ VECTOR_EMBEDDING() test passed
@@ -692,30 +693,6 @@ Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) (200K free tokens/
 </details>
 
 <details>
-<summary><b>Zhipu (best for Chinese users)</b></summary>
-
-```json
-{
-  "agents": {
-    "defaults": {
-      "provider": "zhipu",
-      "model": "glm-4.7"
-    }
-  },
-  "providers": {
-    "zhipu": {
-      "api_key": "your-key",  # pragma: allowlist secret
-      "api_base": "https://open.bigmodel.cn/api/paas/v4"
-    }
-  }
-}
-```
-
-Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys).
-
-</details>
-
-<details>
 <summary><b>All supported providers</b></summary>
 
 | Provider | Purpose | Get API Key |
@@ -728,7 +705,10 @@ Get a key at [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys
 | `gemini` | Gemini models | [aistudio.google.com](https://aistudio.google.com) |
 | `groq` | Fast inference + voice transcription | [console.groq.com](https://console.groq.com) |
 | `deepseek` | DeepSeek models | [platform.deepseek.com](https://platform.deepseek.com) |
-| `zhipu` | Zhipu/GLM models | [bigmodel.cn](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) |
+| `nvidia` | NVIDIA-hosted OpenAI-compatible models | [build.nvidia.com](https://build.nvidia.com/) |
+| `vllm` | Self-hosted vLLM-compatible endpoint | Set your own API base |
+| `moonshot` | Moonshot/Kimi models via model-name detection | [platform.moonshot.cn](https://platform.moonshot.cn/) |
+| `github_copilot` | GitHub Copilot provider | GitHub Copilot entitlement |
 
 </details>
 
@@ -791,7 +771,7 @@ See [`oci-genai/README.md`](oci-genai/README.md) for full documentation.
 
 ## Chat Channels
 
-Connect PicoOraClaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu via the `gateway` command.
+Connect PicoOraClaw to Telegram, WhatsApp, Feishu, Discord, MaixCam, QQ, DingTalk, Slack, LINE, OneBot, or Web via the `gateway` command.
 
 <details>
 <summary><b>Telegram</b> (Recommended)</summary>
@@ -805,7 +785,7 @@ Connect PicoOraClaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu v
     "telegram": {
       "enabled": true,
       "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "allow_from": ["YOUR_USER_ID"]
     }
   }
 }
@@ -827,7 +807,7 @@ Connect PicoOraClaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu v
     "discord": {
       "enabled": true,
       "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "allow_from": ["YOUR_USER_ID"]
     }
   }
 }
@@ -839,7 +819,7 @@ Connect PicoOraClaw to Telegram, Discord, Slack, DingTalk, LINE, QQ, or Feishu v
 </details>
 
 <details>
-<summary><b>QQ, DingTalk, LINE, Feishu, Slack</b></summary>
+<summary><b>WhatsApp, Feishu, MaixCam, QQ, DingTalk, Slack, LINE, OneBot, Web</b></summary>
 
 See `config/config.example.json` for the full channel configuration reference. Each channel follows the same pattern:
 
@@ -891,7 +871,7 @@ Run `picooraclaw gateway` after configuring.
     "host": "adb.us-ashburn-1.oraclecloud.com",
     "port": 1522,
     "service": "xxx_myatp_low.adb.oraclecloud.com",
-    "walletPath": "/path/to/wallet",
+    "wallet_path": "/path/to/wallet",
     "user": "picooraclaw",
     "password": "YourPass123"  # pragma: allowlist secret
   }
@@ -915,9 +895,15 @@ Download wallet from OCI Console > Autonomous Database > DB Connection > Downloa
 | `user` | `PICO_ORACLE_USER` | `picooraclaw` | DB username |
 | `password` | `PICO_ORACLE_PASSWORD` | (none) | DB password |
 | `dsn` | `PICO_ORACLE_DSN` | (none) | Full DSN (ADB wallet-less) |
-| `walletPath` | `PICO_ORACLE_WALLET_PATH` | (none) | Wallet directory (ADB mTLS) |
-| `onnxModel` | `PICO_ORACLE_ONNX_MODEL` | `ALL_MINILM_L12_V2` | ONNX model for embeddings |
-| `agentId` | `PICO_ORACLE_AGENT_ID` | `default` | Multi-agent isolation key |
+| `wallet_path` | `PICO_ORACLE_WALLET_PATH` | (none) | Wallet directory (ADB mTLS) |
+| `pool_max_open` | `PICO_ORACLE_POOL_MAX_OPEN` | `10` | Maximum open DB connections |
+| `pool_max_idle` | `PICO_ORACLE_POOL_MAX_IDLE` | `2` | Maximum idle DB connections |
+| `onnx_model` | `PICO_ORACLE_ONNX_MODEL` | `ALL_MINILM_L12_V2` | ONNX model for embeddings |
+| `agent_id` | `PICO_ORACLE_AGENT_ID` | `default` | Multi-agent isolation key |
+| `embedding_provider` | `PICO_ORACLE_EMBEDDING_PROVIDER` | `api` | `api` with an API key, otherwise ONNX fallback |
+| `embedding_api_base` | `PICO_ORACLE_EMBEDDING_API_BASE` | (none) | OpenAI-compatible embeddings API base |
+| `embedding_api_key` | `PICO_ORACLE_EMBEDDING_API_KEY` | (none) | Embeddings API key |
+| `embedding_model` | `PICO_ORACLE_EMBEDDING_MODEL` | `embedding-3` | Embeddings API model |
 
 </details>
 
@@ -967,7 +953,7 @@ Requires `GRANT CREATE MINING MODEL TO picooraclaw;` as SYSDBA.
 
 Oracle is enabled but connection failed at startup. Check:
 - Is the Oracle container healthy? (`docker ps`)
-- Password match between config and `ORACLE_PWD`?
+- Password match between config and `PICO_ORACLE_PASSWORD` or the setup script argument?
 - Service name should be `FREEPDB1` (not `FREE` or `XE`)
 
 </details>
@@ -995,15 +981,15 @@ PICO_ORACLE_PASSWORD=YourPass123 docker compose --profile oracle --profile gatew
 docker compose --profile gateway up -d
 
 # One-shot agent
-docker compose run --rm picoclaw-agent -m "What is 2+2?"
+docker compose run --rm picooraclaw-agent -m "What is 2+2?"
 ```
 
 ## Features
 
 - Single static binary (~10MB RAM), runs on RISC-V/ARM64/x86_64
-- Ollama, OpenRouter, Anthropic, OpenAI, Gemini, Zhipu, DeepSeek, Groq providers
-- **Default: [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/)** with AI Vector Search (384-dim ONNX embeddings)
-- Chat channels: Telegram, Discord, Slack, QQ, DingTalk, LINE, Feishu, WhatsApp
+- Ollama, OpenRouter, Anthropic, OpenAI, Gemini, DeepSeek, Groq, NVIDIA, vLLM, Moonshot, and GitHub Copilot providers
+- Optional [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/) backend with AI Vector Search (384-dim ONNX embeddings)
+- Chat channels: Telegram, WhatsApp, Feishu, Discord, MaixCam, QQ, DingTalk, Slack, LINE, OneBot, Web
 - Scheduled tasks via cron expressions
 - Heartbeat periodic tasks
 - Skills system (workspace, global, GitHub-hosted)

@@ -1,7 +1,7 @@
 {
   "agents": {
     "defaults": {
-      "workspace": "~/.picoclaw/workspace",
+      "workspace": "~/.picooraclaw/workspace",
       "restrict_to_workspace": true,
       "provider": "openai",
       "model": "xai.grok-4",
@@ -69,6 +69,12 @@
       "reconnect_interval": 5,
       "group_trigger_prefix": [],
       "allow_from": []
+    },
+    "web": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 18792,
+      "token": ""
     }
   },
   "providers": {
@@ -127,11 +133,15 @@
     "user": "picooraclaw",
     "password": "",
     "dsn": "",
-    "walletPath": "",
-    "poolMaxOpen": 10,
-    "poolMaxIdle": 2,
-    "onnxModel": "ALL_MINILM_L12_V2",
-    "agentId": "default"
+    "wallet_path": "",
+    "pool_max_open": 10,
+    "pool_max_idle": 2,
+    "onnx_model": "ALL_MINILM_L12_V2",
+    "agent_id": "default",
+    "embedding_provider": "api",
+    "embedding_api_base": "",
+    "embedding_api_key": "",
+    "embedding_model": "embedding-3"
   },
   "heartbeat": {
     "enabled": true,

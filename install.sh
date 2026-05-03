@@ -58,6 +58,8 @@ check_prereqs() {
     command_exists git || fail "Git is required — https://git-scm.com/"
     success "Git $(git --version | cut -d' ' -f3)"
 
+    # TODO(readme-drift): verify the installed Go version against go.mod
+    # instead of only checking that a go binary exists.
     command_exists go || fail "Go 1.21+ is required — https://go.dev/dl/"
     success "Go $(go version | cut -d' ' -f3)"
 }
@@ -69,6 +71,8 @@ install_deps() {
     success "Modules downloaded"
 
     info "Building binary..."
+    # TODO(readme-drift): build the actual cmd/picooraclaw binary here and fail
+    # if no executable is produced; README advertises this as a working installer.
     go build -o "${INSTALL_DIR}/picooraclaw" ./... 2>/dev/null || go build -o "${INSTALL_DIR}/picooraclaw" . 2>/dev/null || {
         warn "Auto-build failed — check README for specific build instructions"
         return

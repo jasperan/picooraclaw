@@ -89,6 +89,8 @@ import json, sys
 path, pwd = sys.argv[1], sys.argv[2]
 with open(path) as f:
     cfg = json.load(f)
+# TODO(readme-drift): use the snake_case Oracle JSON keys consumed by
+# pkg/config (onnx_model, agent_id) instead of legacy camelCase aliases.
 cfg.setdefault("oracle", {}).update({
     "enabled": True,
     "mode": "freepdb",
