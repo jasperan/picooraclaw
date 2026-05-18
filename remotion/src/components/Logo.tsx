@@ -52,7 +52,7 @@ export const Logo: React.FC<{
       }}
     >
       <Img
-        src={staticFile("logo.png")}
+        src={staticFile("new_logo.png")}
         style={{
           width: "100%",
           height: "100%",

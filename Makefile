@@ -119,12 +119,12 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "Clean complete"
 
-## fmt: Format Go code
-vet:
+## vet: Run Go vet
+vet: generate
 	@$(GO) vet ./...
 
-## fmt: Format Go code
-test:
+## test: Run Go tests
+test: generate
 	@$(GO) test ./...
 
 ## fmt: Format Go code

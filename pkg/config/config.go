@@ -279,15 +279,15 @@ func DefaultConfig() *Config {
 	return &Config{
 		Agents: AgentsConfig{
 			Defaults: AgentDefaults{
-				Workspace:           "~/.picooraclaw/workspace",
-				RestrictToWorkspace: true,
-				Provider:            "openai",
-				Model:               "xai.grok-4",
+				Workspace:                 "~/.picooraclaw/workspace",
+				RestrictToWorkspace:       true,
+				Provider:                  "openai",
+				Model:                     "xai.grok-4",
 				MaxTokens:                 8192,
 				Temperature:               0.7,
 				SummarizeMessageThreshold: 20,
 				SummarizeTokenPercent:     75,
-				MaxToolIterations:   20,
+				MaxToolIterations:         20,
 			},
 		},
 		Channels: ChannelsConfig{

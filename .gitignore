@@ -93,6 +93,8 @@ progress.md
 .openhands/
 .serena/
 .omc/
+.omx/
+node_modules/
 
 # Generated content (local only)
 content/

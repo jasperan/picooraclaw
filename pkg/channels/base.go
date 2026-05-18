@@ -20,12 +20,12 @@ type Channel interface {
 }
 
 type BaseChannel struct {
-	config          interface{}
-	bus             *bus.MessageBus
-	running         bool
-	name            string
-	allowList       []string
-	allowListOnce   sync.Once
+	config        interface{}
+	bus           *bus.MessageBus
+	running       bool
+	name          string
+	allowList     []string
+	allowListOnce sync.Once
 }
 
 func NewBaseChannel(name string, config interface{}, bus *bus.MessageBus, allowList []string) *BaseChannel {

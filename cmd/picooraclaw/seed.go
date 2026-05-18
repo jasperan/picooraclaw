@@ -92,14 +92,14 @@ func seedDemoCmd() {
 	stateStore := oracledb.NewStateStore(db, agentID)
 
 	stateEntries := map[string]string{
-		"last_channel":       "cli",
-		"last_chat_id":       "repl-session",
-		"user_name":          "jasperan",
-		"user_timezone":      "America/Los_Angeles",
-		"agent_mode":         "interactive",
+		"last_channel":        "cli",
+		"last_chat_id":        "repl-session",
+		"user_name":           "jasperan",
+		"user_timezone":       "America/Los_Angeles",
+		"agent_mode":          "interactive",
 		"total_conversations": "42",
-		"tools_used_count":   "187",
-		"last_model":         "gpt-4o-mini",
+		"tools_used_count":    "187",
+		"last_model":          "gpt-4o-mini",
 	}
 
 	stateErrors := 0

@@ -755,8 +755,8 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 
 		// Execute tool calls in parallel (#1070)
 		type indexedToolResult struct {
-			result *tools.ToolResult
-			tc     providers.ToolCall
+			result  *tools.ToolResult
+			tc      providers.ToolCall
 			loopHit bool   // true if this call was a loop detection hit
 			loopMsg string // warning message for loop detection
 		}
@@ -923,7 +923,6 @@ func (al *AgentLoop) runLLMIteration(ctx context.Context, messages []providers.M
 
 	return finalContent, iteration, nil
 }
-
 
 // maybeSummarize triggers summarization if the session history exceeds thresholds.
 func (al *AgentLoop) maybeSummarize(sessionKey string) {
