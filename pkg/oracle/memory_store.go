@@ -3,11 +3,25 @@ package oracle
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jasperan/picooraclaw/pkg/logger"
+)
+
+// Recall and deduplication tuning constants.
+const (
+	// recallMinScore is the minimum cosine similarity (1 - distance) for a
+	// memory to be returned by Recall.
+	recallMinScore = 0.3
+	// dedupMaxDistance is the maximum cosine distance below which two memories
+	// are treated as near-duplicates (i.e. ~95%+ similarity).
+	dedupMaxDistance = 0.05
+	// defaultLongTermImportance is the importance assigned to long-term memories
+	// written via WriteLongTerm.
+	defaultLongTermImportance = 0.7
 )
 
 // MemoryRecallResult represents a single recalled memory with similarity score.
@@ -73,7 +87,7 @@ func (ms *MemoryStore) ReadLongTerm() string {
 
 // WriteLongTerm stores a new long-term memory with embedding.
 func (ms *MemoryStore) WriteLongTerm(content string) error {
-	_, err := ms.Remember(content, 0.7, "long_term")
+	_, err := ms.Remember(content, defaultLongTermImportance, "long_term")
 	return err
 }
 
@@ -333,7 +347,7 @@ func (ms *MemoryStore) Recall(query string, maxResults int) ([]MemoryRecallResul
 		}
 		r.Score = 1.0 - distance
 
-		if r.Score >= 0.3 { // Minimum similarity threshold
+		if r.Score >= recallMinScore { // Minimum similarity threshold
 			results = append(results, r)
 			memoryIDs = append(memoryIDs, r.MemoryID)
 		}
@@ -377,7 +391,9 @@ func float32SliceToString(v []float32) string {
 		if i > 0 {
 			sb.WriteByte(',')
 		}
-		fmt.Fprintf(&sb, "%g", f)
+		// strconv.FormatFloat avoids the fmt reflection cost on the hot
+		// embedding-write path; 'g'/-1/32 matches the prior %g formatting.
+		sb.WriteString(strconv.FormatFloat(float64(f), 'g', -1, 32))
 	}
 	sb.WriteByte(']')
 	return sb.String()
@@ -440,7 +456,7 @@ func (ms *MemoryStore) deduplicateMemory(text string, importance float64) (strin
 			FETCH FIRST 1 ROW ONLY`, ms.modelName)
 		var distance float64
 		err := ms.db.QueryRow(sqlQuery, text, ms.agentID).Scan(&existingID, &existingImportance, &distance)
-		if err == nil && distance < 0.05 { // 95%+ similarity
+		if err == nil && distance < dedupMaxDistance { // 95%+ similarity
 			if importance > existingImportance {
 				if _, execErr := ms.db.Exec("UPDATE PICO_MEMORIES SET importance = :1, accessed_at = CURRENT_TIMESTAMP WHERE memory_id = :2",
 					importance, existingID); execErr != nil {

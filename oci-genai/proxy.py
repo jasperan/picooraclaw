@@ -29,6 +29,9 @@ from socketserver import ThreadingMixIn
 from oci_client import create_oci_client
 
 PROXY_PORT = int(os.getenv("OCI_PROXY_PORT", "9999"))
+# Bind to loopback by default so the proxy is not exposed on the network.
+# Set OCI_PROXY_HOST=0.0.0.0 to listen on all interfaces intentionally.
+PROXY_HOST = os.getenv("OCI_PROXY_HOST", "127.0.0.1")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -127,8 +130,8 @@ def main():
     client = create_oci_client()
     OCIProxyHandler.client = client
 
-    server = ThreadedHTTPServer(("0.0.0.0", PROXY_PORT), OCIProxyHandler)
-    print(f"OCI GenAI proxy listening on http://localhost:{PROXY_PORT}/v1")
+    server = ThreadedHTTPServer((PROXY_HOST, PROXY_PORT), OCIProxyHandler)
+    print(f"OCI GenAI proxy listening on http://{PROXY_HOST}:{PROXY_PORT}/v1")
     print(f"  Region:      {os.getenv('OCI_REGION', 'us-chicago-1')}")
     print(f"  Profile:     {os.getenv('OCI_PROFILE', 'DEFAULT')}")
     print(f"  Compartment: {os.getenv('OCI_COMPARTMENT_ID', '')[:50]}...")

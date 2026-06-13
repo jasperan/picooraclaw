@@ -13,6 +13,15 @@ import (
 	"github.com/jasperan/picooraclaw/pkg/logger"
 )
 
+const (
+	// defaultEmbeddingDims is the fallback embedding dimensionality used before
+	// the API has reported its true vector size. Matches ALL_MINILM_L12_V2.
+	defaultEmbeddingDims = 384
+	// maxEmbeddingInputLen caps the input text length sent to the embedding
+	// backend to keep requests within a safe bound.
+	maxEmbeddingInputLen = 512
+)
+
 // EmbeddingService handles text-to-vector embedding.
 // It supports two modes:
 //   - "onnx": Uses Oracle's in-database VECTOR_EMBEDDING() with an ONNX model
@@ -39,7 +48,7 @@ func NewEmbeddingService(db *sql.DB, modelName string) (*EmbeddingService, error
 	return &EmbeddingService{
 		db:        db,
 		modelName: modelName,
-		dims:      384, // ALL_MINILM_L12_V2 outputs 384-dim vectors
+		dims:      defaultEmbeddingDims, // ALL_MINILM_L12_V2 outputs 384-dim vectors
 		mode:      "onnx",
 	}, nil
 }
@@ -85,12 +94,12 @@ func (es *EmbeddingService) EmbedText(text string) ([]float32, error) {
 		if es.dims > 0 {
 			return make([]float32, es.dims), nil
 		}
-		return make([]float32, 384), nil
+		return make([]float32, defaultEmbeddingDims), nil
 	}
 
 	// Truncate to a safe max input length
-	if len(text) > 512 {
-		text = text[:512]
+	if len(text) > maxEmbeddingInputLen {
+		text = text[:maxEmbeddingInputLen]
 	}
 
 	if es.mode == "api" {

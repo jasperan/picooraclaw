@@ -59,6 +59,7 @@ The default LLM backend remains **Ollama** -- this is an optional alternative fo
 | `OCI_REGION` | `us-chicago-1` | OCI region for the GenAI service endpoint |
 | `OCI_COMPARTMENT_ID` | *(required)* | OCI compartment OCID |
 | `OCI_PROXY_PORT` | `9999` | Local port for the proxy server |
+| `OCI_PROXY_HOST` | `127.0.0.1` | Bind address. Defaults to loopback; set `0.0.0.0` to expose on all interfaces |
 
 ## Available OCI GenAI Models
 
