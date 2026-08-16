@@ -11,18 +11,22 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/google/uuid"
 	"github.com/jasperan/picooraclaw/pkg/agent"
 	"github.com/jasperan/picooraclaw/pkg/auth"
 	"github.com/jasperan/picooraclaw/pkg/bus"
@@ -115,6 +119,16 @@ func main() {
 		setupOracleCmd()
 	case "oracle-inspect":
 		oracleInspectCmd()
+	case "digest":
+		digestCmd()
+	case "reindex":
+		reindexCmd()
+	case "consolidate":
+		consolidateCmd()
+	case "index":
+		indexCmd()
+	case "code-search":
+		codeSearchCmd()
 	case "seed-demo":
 		seedDemoCmd()
 	case "skills":
@@ -141,7 +155,13 @@ func main() {
 
 		switch subcommand {
 		case "list":
-			skillsListCmd(skillsLoader)
+			skillsListCmd(skillsLoader, newSkillUsage(cfg).Lookup)
+		case "find":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: picooraclaw skills find <query>")
+				return
+			}
+			skillsFindCmd(skillsLoader, newSkillUsage(cfg).Lookup, strings.Join(os.Args[3:], " "))
 		case "install":
 			skillsInstallCmd(installer)
 		case "remove", "uninstall":
@@ -190,6 +210,11 @@ func printHelp() {
 	fmt.Println("  skills         Manage skills (install, list, remove)")
 	fmt.Println("  setup-oracle   Initialize Oracle Database schema and ONNX model")
 	fmt.Println("  oracle-inspect Inspect data stored in Oracle Database")
+	fmt.Println("  digest         Generate a retrospective from transcripts/memories")
+	fmt.Println("  reindex        Recompute embeddings for Oracle tables")
+	fmt.Println("  consolidate    Promote successful episodes into long-term memories")
+	fmt.Println("  index          Parse a repo into the Oracle code knowledge graph")
+	fmt.Println("  code-search    Search the indexed codebase (NL or callers/callees)")
 	fmt.Println("  seed-demo      Populate Oracle with realistic demo data")
 	fmt.Println("  version        Show version information")
 }
@@ -351,6 +376,9 @@ func migrateHelp() {
 func agentCmd() {
 	message := ""
 	sessionKey := "cli:default"
+	voiceFile := ""
+	voiceRecord := 0
+	speak := false
 
 	args := os.Args[2:]
 	for i := 0; i < len(args); i++ {
@@ -368,6 +396,20 @@ func agentCmd() {
 				sessionKey = args[i+1]
 				i++
 			}
+		case "--voice":
+			if i+1 < len(args) {
+				voiceFile = args[i+1]
+				i++
+			}
+		case "--voice-record":
+			if i+1 < len(args) {
+				if n, err := strconv.Atoi(args[i+1]); err == nil && n > 0 {
+					voiceRecord = n
+				}
+				i++
+			}
+		case "--speak":
+			speak = true
 		}
 	}
 
@@ -411,6 +453,33 @@ func agentCmd() {
 			"skills_available": startupInfo["skills"].(map[string]interface{})["available"],
 		})
 
+	// Voice input (Spec 07): transcribe an audio file or record from the mic.
+	if voiceFile != "" || voiceRecord > 0 {
+		if voiceRecord > 0 {
+			tmp, err := recordAudio(voiceRecord)
+			if err != nil {
+				fmt.Printf("Recording failed: %v\n", err)
+				os.Exit(1)
+			}
+			defer os.Remove(tmp)
+			voiceFile = tmp
+		}
+		transcriber := voice.NewGroqTranscriber(cfg.Providers.Groq.APIKey)
+		if !transcriber.IsAvailable() {
+			fmt.Println("Voice input requires a Groq API key (providers.groq.api_key).")
+			os.Exit(1)
+		}
+		transcript, err := transcriber.Transcribe(context.Background(), voiceFile)
+		if err != nil {
+			fmt.Printf("Transcription failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("🗣  You said: %s\n", transcript.Text)
+		if message == "" {
+			message = transcript.Text
+		}
+	}
+
 	if message != "" {
 		ctx := context.Background()
 		response, err := agentLoop.ProcessDirect(ctx, message, sessionKey)
@@ -419,10 +488,63 @@ func agentCmd() {
 			os.Exit(1)
 		}
 		fmt.Printf("\n%s %s\n", logo, response)
+		if speak {
+			if spk := voice.NewSpeaker(cfg.Voice.Speaker); spk != nil {
+				_ = spk.Speak(stripMarkdown(response))
+			} else {
+				fmt.Println("(no system TTS found — install espeak or use say)")
+			}
+		}
 	} else {
 		fmt.Printf("%s Interactive mode (Ctrl+C to exit)\n\n", logo)
 		interactiveMode(agentLoop, sessionKey)
 	}
+}
+
+// recordAudio records N seconds from the mic via arecord/ffmpeg into a temp
+// wav file. Returns the temp path.
+func recordAudio(seconds int) (string, error) {
+	if seconds <= 0 {
+		seconds = 10
+	}
+	tmp, err := os.CreateTemp("", "picooraclaw-voice-*.wav")
+	if err != nil {
+		return "", err
+	}
+	tmp.Close()
+
+	if arecord, err := exec.LookPath("arecord"); err == nil {
+		cmd := exec.Command(arecord, "-q", "-d", strconv.Itoa(seconds), "-f", "S16_LE", "-r", "16000", "-c", "1", tmp.Name())
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		fmt.Printf("🎙 Recording for %d seconds...\n", seconds)
+		if err := cmd.Run(); err != nil {
+			os.Remove(tmp.Name())
+			return "", fmt.Errorf("arecord failed (install alsa-utils): %w", err)
+		}
+		return tmp.Name(), nil
+	}
+	if ffmpeg, err := exec.LookPath("ffmpeg"); err == nil {
+		cmd := exec.Command(ffmpeg, "-y", "-f", "alsa", "-i", "default", "-t", strconv.Itoa(seconds), "-ar", "16000", "-ac", "1", tmp.Name())
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		fmt.Printf("🎙 Recording for %d seconds...\n", seconds)
+		if err := cmd.Run(); err != nil {
+			os.Remove(tmp.Name())
+			return "", fmt.Errorf("ffmpeg recording failed: %w", err)
+		}
+		return tmp.Name(), nil
+	}
+	os.Remove(tmp.Name())
+	return "", fmt.Errorf("no recorder found — install arecord (alsa-utils) or ffmpeg")
+}
+
+// stripMarkdown removes common markdown decorations for TTS.
+func stripMarkdown(s string) string {
+	s = strings.ReplaceAll(s, "**", "")
+	s = strings.ReplaceAll(s, "`", "")
+	s = strings.ReplaceAll(s, "#", "")
+	return s
 }
 
 func interactiveMode(agentLoop *agent.AgentLoop, sessionKey string) {
@@ -581,6 +703,12 @@ func gatewayCmd() {
 	// Setup cron tool and service
 	cronService := setupCronTool(agentLoop, msgBus, cfg.WorkspacePath(), cfg.Tools.Cron.ExecTimeoutMinutes)
 
+	// Proactive agent (Spec 06): register built-in morning brief + EOD summary
+	// cron jobs. Idempotent: skip when a job with the same name already exists.
+	if cfg.Proactive.Enabled {
+		registerProactiveJobs(cronService, cfg, oraStores)
+	}
+
 	heartbeatService := heartbeat.NewHeartbeatService(
 		cfg.WorkspacePath(),
 		cfg.Heartbeat.Interval,
@@ -641,12 +769,20 @@ func gatewayCmd() {
 	if cfg.Channels.Web.Enabled {
 		if webChannel, ok := channelManager.GetChannel("web"); ok {
 			if wc, ok := webChannel.(*web.Channel); ok {
-				agentLoop.SetEventEmitter(wc)
-				wc.SetSessions(&webSessionAdapter{})
-				if oraStores != nil {
-					wc.SetMemory(&webMemoryAdapter{m: oraStores.memory})
+				// Compose the episode recorder with the web emitter so both
+				// receive the event stream (Spec 02).
+				var emitters []agent.EventEmitter
+				if oraStores != nil && oraStores.recorder != nil {
+					emitters = append(emitters, oraStores.recorder)
 				}
-				logger.InfoC("web", "Web channel wired (events + sessions + memory)")
+				emitters = append(emitters, wc)
+				agentLoop.SetEventEmitter(agent.MultiEmitter{Emitters: emitters})
+				wc.SetSessions(&webSessionAdapter{})
+				if oracleConn != nil {
+					wc.SetMemory(&webMemoryAdapter{m: oraStores.memory})
+					wc.SetStatus(&webStatusAdapter{db: oracleConn.DB(), agentID: cfg.Oracle.AgentID})
+				}
+				logger.InfoC("web", "Web channel wired (events + sessions + memory + status)")
 			}
 		}
 	}
@@ -1037,6 +1173,43 @@ func getConfigPath() string {
 	return filepath.Join(home, ".picooraclaw", "config.json")
 }
 
+// registerProactiveJobs adds the built-in brief/EOD cron jobs (idempotent).
+// Delivery defaults to the user's last-used channel when available.
+func registerProactiveJobs(cronService *cron.CronService, cfg *config.Config, oraStores *oracleStores) {
+	existing := map[string]bool{}
+	for _, j := range cronService.ListJobs(true) {
+		existing[j.Name] = true
+	}
+
+	channel, chatID := cfg.Proactive.BriefChannel, ""
+	if channel == "" && oraStores != nil {
+		state := oracledb.NewStateStore(oraStores.sessionDB(), cfg.Oracle.AgentID)
+		channel = state.GetLastChannel()
+		chatID = state.GetLastChatID()
+	}
+
+	if !existing["morning_brief"] {
+		if _, err := cronService.AddJob("morning_brief",
+			cron.CronSchedule{Kind: "cron", Expr: cfg.Proactive.BriefCron},
+			agent.MorningBriefPrompt, false /* deliver=false → agent turn */, channel, chatID); err != nil {
+			logger.WarnCF("proactive", "failed to register morning_brief", map[string]interface{}{"error": err.Error()})
+		}
+	}
+	if !existing["eod_summary"] {
+		if _, err := cronService.AddJob("eod_summary",
+			cron.CronSchedule{Kind: "cron", Expr: cfg.Proactive.EODCron},
+			agent.EODSummaryPrompt, false, channel, chatID); err != nil {
+			logger.WarnCF("proactive", "failed to register eod_summary", map[string]interface{}{"error": err.Error()})
+		}
+	}
+}
+
+// sessionDB exposes the raw connection for state reads (kept on the stores
+// wrapper to avoid threading another *sql.DB through gateway wiring).
+func (o *oracleStores) sessionDB() *sql.DB {
+	return o.session.DB()
+}
+
 func setupCronTool(agentLoop *agent.AgentLoop, msgBus *bus.MessageBus, workspace string, execTimeoutMinutes int) *cron.CronService {
 	cronStorePath := filepath.Join(workspace, "cron", "jobs.json")
 
@@ -1295,7 +1468,7 @@ func skillsHelp() {
 	fmt.Println("  picoclaw skills remove weather")
 }
 
-func skillsListCmd(loader *skills.SkillsLoader) {
+func skillsListCmd(loader *skills.SkillsLoader, usage func(string) int) {
 	allSkills := loader.ListSkills()
 
 	if len(allSkills) == 0 {
@@ -1306,10 +1479,133 @@ func skillsListCmd(loader *skills.SkillsLoader) {
 	fmt.Println("\nInstalled Skills:")
 	fmt.Println("------------------")
 	for _, skill := range allSkills {
-		fmt.Printf("  ✓ %s (%s)\n", skill.Name, skill.Source)
+		count := 0
+		if usage != nil {
+			count = usage(skill.Name)
+		}
+		if count > 0 {
+			fmt.Printf("  ✓ %s (%s)  — used %dx\n", skill.Name, skill.Source, count)
+		} else {
+			fmt.Printf("  ✓ %s (%s)\n", skill.Name, skill.Source)
+		}
 		if skill.Description != "" {
 			fmt.Printf("    %s\n", skill.Description)
 		}
+	}
+}
+
+// skillUsage wraps Oracle (PICO_SKILL_USAGE) and file (.usage.json) backends
+// behind one small interface with a single open connection.
+type skillUsage struct {
+	store    *oracledb.SkillStore
+	recorder *skills.UsageRecorder
+	usage    map[string]int
+}
+
+func newSkillUsage(cfg *config.Config) *skillUsage {
+	u := &skillUsage{}
+	if cfg.Oracle.Enabled {
+		conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+		if err != nil {
+			return u
+		}
+		var embSvc *oracledb.EmbeddingService
+		if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
+			embSvc = oracledb.NewAPIEmbeddingService(conn.DB(), cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
+		} else if svc, err := oracledb.NewEmbeddingService(conn.DB(), cfg.Oracle.ONNXModel); err == nil {
+			embSvc = svc
+		}
+		u.store = oracledb.NewSkillStore(conn.DB(), cfg.Oracle.AgentID, embSvc)
+		u.usage = map[string]int{}
+		if usages, err := u.store.Usage(); err == nil {
+			for _, s := range usages {
+				u.usage[s.Name] = s.UseCount
+			}
+		}
+	} else {
+		u.recorder = skills.NewUsageRecorder(cfg.WorkspacePath())
+		u.usage = map[string]int{}
+		for _, s := range u.recorder.List() {
+			u.usage[s.Name] = s.UseCount
+		}
+	}
+	return u
+}
+
+func (u *skillUsage) Lookup(name string) int { return u.usage[name] }
+
+func (u *skillUsage) Record(name string) {
+	if u.store != nil {
+		u.store.RecordUsage(name)
+	} else if u.recorder != nil {
+		u.recorder.Record(name)
+	}
+	u.usage[name]++
+}
+
+func (u *skillUsage) Search(query string, limit int) []string {
+	if u.store == nil {
+		return nil
+	}
+	hits, err := u.store.Search(query, limit)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.Name)
+	}
+	return out
+}
+
+func (u *skillUsage) Upsert(name, desc string) {
+	if u.store != nil {
+		_ = u.store.UpsertSkill(name, desc)
+	}
+}
+
+// skillsFindCmd searches installed skills semantically (Oracle) or by
+// substring (file fallback).
+func skillsFindCmd(loader *skills.SkillsLoader, usage func(string) int, query string) {
+	installed := loader.ListSkills()
+	if len(installed) == 0 {
+		fmt.Println("No skills installed.")
+		return
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+	su := newSkillUsage(cfg)
+
+	// Seed embeddings for installed skills (idempotent upsert), then search.
+	for _, s := range installed {
+		su.Upsert(s.Name, s.Description)
+	}
+	ranked := su.Search(query, 5)
+	if len(ranked) == 0 {
+		for _, s := range skills.SearchInstalled(installed, query) {
+			ranked = append(ranked, s.Name)
+		}
+	}
+
+	fmt.Printf("\nSkill matches for %q:\n", query)
+	fmt.Println("--------------------")
+	if len(ranked) == 0 {
+		fmt.Println("  (no matches)")
+		return
+	}
+	for _, name := range ranked {
+		count := 0
+		if usage != nil {
+			count = usage(name)
+		}
+		suffix := ""
+		if count > 0 {
+			suffix = fmt.Sprintf("  (used %dx)", count)
+		}
+		fmt.Printf("  ✓ %s%s\n", name, suffix)
 	}
 }
 
@@ -1523,7 +1819,7 @@ func setupOracleCmd() {
 		fmt.Printf("✗ Schema initialization failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("✓ Schema initialized (8 tables with PICO_ prefix)")
+	fmt.Println("✓ Schema initialized (8 base tables + migrations: episodes, code graph, skills)")
 
 	// Set up embedding service
 	var embSvc *oracledb.EmbeddingService
@@ -1593,14 +1889,35 @@ func setupOracleCmd() {
 		fmt.Println("✓ Prompts seeded from workspace")
 	}
 
+	// Optional JSON-Relational Duality views (Oracle 23ai+ showcase, Spec 09).
+	if hasFlag(os.Args[2:], "--duality") {
+		if err := oracledb.CreateDualityViews(conn.DB()); err != nil {
+			fmt.Printf("⚠ Duality views skipped (requires Oracle 23ai+): %v\n", err)
+		} else {
+			fmt.Println("✓ JSON-Relational Duality views created (PICO_MEMORIES_DOC, PICO_SESSIONS_DOC)")
+		}
+	}
+
 	fmt.Println("\n🎉 Oracle setup complete! picooraclaw is ready to use Oracle AI Database.")
+}
+
+// hasFlag reports whether any argument in args equals flag (or --flag).
+func hasFlag(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag || a == "--"+flag {
+			return true
+		}
+	}
+	return false
 }
 
 // oracleStores bundles Oracle-backed stores exposed to gatewayCmd so downstream
 // wiring (web channel adapters, etc.) can reach the memory store directly.
 type oracleStores struct {
-	session *oracledb.SessionStore
-	memory  *oracledb.MemoryStore
+	session  *oracledb.SessionStore
+	memory   *oracledb.MemoryStore
+	episodes *oracledb.EpisodeStore
+	recorder *agent.EpisodeRecorder
 }
 
 // initOracleAgent creates an agent loop with Oracle-backed stores.
@@ -1632,6 +1949,14 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 	sessionStore := oracledb.NewSessionStore(db, agentID)
 	stateStore := oracledb.NewStateStore(db, agentID)
 	memoryStore := oracledb.NewMemoryStore(db, agentID, embSvc)
+	if cfg.Oracle.LexicalMode != "" {
+		memoryStore.SetLexicalMode(cfg.Oracle.LexicalMode)
+	}
+
+	// Live transcript audit log (Spec 01): every message is appended to
+	// PICO_TRANSCRIPTS with an in-database embedding when ONNX is available.
+	transcriptStore := oracledb.NewTranscriptStore(db, agentID, embSvc)
+	sessionStore.SetTranscriptRecorder(transcriptStore)
 
 	// Create agent loop with Oracle stores
 	agentLoop := agent.NewAgentLoopWithStores(cfg, msgBus, provider, sessionStore, stateStore, memoryStore)
@@ -1640,39 +1965,244 @@ func initOracleAgent(cfg *config.Config, msgBus *bus.MessageBus, provider provid
 	agentLoop.RegisterTool(tools.NewRememberTool(memoryStore))
 	agentLoop.RegisterTool(tools.NewWriteDailyNoteTool(memoryStore))
 
-	// Create a recall adapter that bridges oracle.MemoryRecallResult to tools.RecallResult
-	agentLoop.RegisterTool(tools.NewRecallTool(&recallAdapter{store: memoryStore}))
+	// Episodic memory (Spec 02): record agent runs as replayable episodes.
+	// The recorder is the default emitter; the web channel (when enabled) is
+	// composed via MultiEmitter in gateway wiring.
+	episodeStore := oracledb.NewEpisodeStore(db, agentID, embSvc)
+	recorder := agent.NewEpisodeRecorder(&episodeSink{store: episodeStore})
+	agentLoop.SetEventEmitter(recorder)
+
+	// Create a recall adapter that bridges oracle stores to tools.RecallResult
+	agentLoop.RegisterTool(tools.NewRecallTool(&recallAdapter{store: memoryStore, transcripts: transcriptStore, episodes: episodeStore}))
+
+	// Code knowledge graph (Spec 03): register code_search when a repo is
+	// configured for indexing.
+	if cfg.Oracle.CodeIndexRepo != "" {
+		codeGraph := oracledb.NewCodeGraphStore(db, agentID, embSvc)
+		agentLoop.RegisterTool(tools.NewCodeSearchTool(&codeGraphAdapter{store: codeGraph}, cfg.Oracle.CodeIndexRepo))
+	}
+
+	// Self-querying analytics (Spec 04): register the brain tool.
+	agentLoop.RegisterTool(tools.NewBrainTool(&brainAdapter{db: db, agentID: agentID}))
 
 	// Wire prompt store into context builder for Oracle-backed prompts
 	promptStore := oracledb.NewPromptStore(db, agentID)
 	agentLoop.SetPromptStore(promptStore)
 
 	logger.InfoC("oracle", "Oracle stores initialized")
-	return agentLoop, conn, &oracleStores{session: sessionStore, memory: memoryStore}, nil
+	return agentLoop, conn, &oracleStores{session: sessionStore, memory: memoryStore, episodes: episodeStore, recorder: recorder}, nil
 }
 
-// recallAdapter adapts oracle.MemoryStore to tools.Recaller interface.
+// brainAdapter adapts oracle analytics to the tools.Brain interface.
+type brainAdapter struct {
+	db      *sql.DB
+	agentID string
+}
+
+func (a *brainAdapter) Report(topic string, days int) (string, error) {
+	var report *oracledb.AnalyticsReport
+	var err error
+	switch topic {
+	case "activity":
+		report, err = oracledb.ActivityReport(a.db, a.agentID, days)
+	case "topics":
+		report, err = oracledb.TopicReport(a.db, a.agentID, days, 15)
+	case "tools":
+		report, err = oracledb.ToolReport(a.db, a.agentID)
+	case "channels":
+		report, err = oracledb.ChannelReport(a.db, a.agentID, days)
+	case "sessions":
+		report, err = oracledb.SessionReport(a.db, a.agentID, 10)
+	case "week", "digest":
+		report, err = oracledb.Digest(a.db, a.agentID, days)
+	default:
+		return "", fmt.Errorf("unknown topic %q", topic)
+	}
+	if err != nil {
+		return "", err
+	}
+	return report.Render(), nil
+}
+
+// episodeSink adapts agent.Episode to the oracle EpisodeStore.
+type episodeSink struct {
+	store *oracledb.EpisodeStore
+}
+
+func (s *episodeSink) SaveEpisode(ep agent.Episode) error {
+	return s.store.Save(&oracledb.Episode{
+		SessionKey: ep.SessionID,
+		Goal:       ep.Goal,
+		Trajectory: ep.Trajectory,
+		Outcome:    ep.Outcome,
+		Status:     ep.Status,
+		DurationMS: ep.DurationMS,
+	})
+}
+
+// codeGraphAdapter adapts oracle.CodeGraphStore to tools.CodeSearcher.
+type codeGraphAdapter struct {
+	store *oracledb.CodeGraphStore
+}
+
+func (a *codeGraphAdapter) SearchNL(repo, query string, limit int) ([]tools.CodeSearchHit, error) {
+	hits, err := a.store.SearchNL(repo, query, limit)
+	return toToolHits(hits), err
+}
+
+func (a *codeGraphAdapter) CallersOf(repo, symbol string, depth, limit int) ([]tools.CodeSearchHit, error) {
+	hits, err := a.store.CallersOf(repo, symbol, depth, limit)
+	return toToolHits(hits), err
+}
+
+func (a *codeGraphAdapter) CalleesOf(repo, symbol string, depth, limit int) ([]tools.CodeSearchHit, error) {
+	hits, err := a.store.CalleesOf(repo, symbol, depth, limit)
+	return toToolHits(hits), err
+}
+
+func toToolHits(hits []oracledb.CodeSearchHit) []tools.CodeSearchHit {
+	out := make([]tools.CodeSearchHit, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, tools.CodeSearchHit{
+			NodeID:    h.NodeID,
+			Kind:      h.Kind,
+			Name:      h.Name,
+			Path:      h.Path,
+			Line:      h.Line,
+			Signature: h.Signature,
+			Doc:       h.Doc,
+			Score:     h.Score,
+		})
+	}
+	return out
+}
+
+// recallAdapter adapts oracle stores to the tools.Recaller interface.
 type recallAdapter struct {
-	store *oracledb.MemoryStore
+	store       *oracledb.MemoryStore
+	transcripts *oracledb.TranscriptStore
+	episodes    *oracledb.EpisodeStore
 }
 
 func (a *recallAdapter) Recall(query string, maxResults int) ([]tools.RecallResult, error) {
-	oracleResults, err := a.store.Recall(query, maxResults)
+	return a.RecallEx(tools.RecallRequest{
+		Query:      query,
+		MaxResults: maxResults,
+		Lexical:    true,
+		Scope:      "memories",
+	})
+}
+
+func (a *recallAdapter) RecallEx(req tools.RecallRequest) ([]tools.RecallResult, error) {
+	switch req.Scope {
+	case "transcripts":
+		if a.transcripts == nil {
+			return nil, fmt.Errorf("transcript search not available")
+		}
+		rows, err := a.transcripts.RecallTranscripts(req.Query, req.MaxResults)
+		if err != nil {
+			return nil, err
+		}
+		results := make([]tools.RecallResult, 0, len(rows))
+		for _, r := range rows {
+			results = append(results, tools.RecallResult{
+				MemoryID:   fmt.Sprintf("t%d", r.ID),
+				Text:       r.Text,
+				Importance: 0.5,
+				Category:   r.SessionKey + "/" + r.Role,
+				Score:      r.Score,
+			})
+		}
+		return results, nil
+	case "episodes":
+		return recallEpisodesEx(a, req)
+	default:
+		oracleResults, err := a.store.RecallOpts(req.Query, req.MaxResults, oracledb.RecallOptions{
+			Category: req.Category,
+			Days:     req.Days,
+			Lexical:  req.Lexical,
+		})
+		if err != nil {
+			return nil, err
+		}
+		results := make([]tools.RecallResult, len(oracleResults))
+		for i, r := range oracleResults {
+			results[i] = tools.RecallResult{
+				MemoryID:   r.MemoryID,
+				Text:       r.Text,
+				Importance: r.Importance,
+				Category:   r.Category,
+				Score:      r.Score,
+			}
+		}
+		return results, nil
+	}
+}
+
+// recallEpisodesEx replays past problem-solving runs (Spec 02).
+func recallEpisodesEx(a *recallAdapter, req tools.RecallRequest) ([]tools.RecallResult, error) {
+	if a.episodes == nil {
+		return nil, fmt.Errorf("episode search not available (Oracle disabled?)")
+	}
+	rows, err := a.episodes.RecallEpisodes(req.Query, req.MaxResults)
 	if err != nil {
 		return nil, err
 	}
-
-	results := make([]tools.RecallResult, len(oracleResults))
-	for i, r := range oracleResults {
-		results[i] = tools.RecallResult{
-			MemoryID:   r.MemoryID,
-			Text:       r.Text,
-			Importance: r.Importance,
-			Category:   r.Category,
-			Score:      r.Score,
+	results := make([]tools.RecallResult, 0, len(rows))
+	for _, r := range rows {
+		// Compact replay card: goal + step summary + outcome.
+		var steps []string
+		for _, t := range splitTrajectory(r.Trajectory) {
+			steps = append(steps, t)
 		}
+		stepLine := "steps: " + strings.Join(steps, "; ")
+		if len(stepLine) > 600 {
+			stepLine = stepLine[:600] + "…"
+		}
+		text := fmt.Sprintf("goal: %s\n%s\noutcome: %s (status=%s, %dms)",
+			truncateStr(r.Goal, 200), stepLine, truncateStr(r.Outcome, 300), r.Status, r.DurationMS)
+		results = append(results, tools.RecallResult{
+			MemoryID:   r.ID,
+			Text:       text,
+			Importance: r.Importance,
+			Category:   "episode/" + r.Status,
+			Score:      r.Score,
+		})
 	}
 	return results, nil
+}
+
+// splitTrajectory extracts "tool(ok)" lines from the episode trajectory JSON.
+func splitTrajectory(traj string) []string {
+	var events []map[string]interface{}
+	if err := json.Unmarshal([]byte(traj), &events); err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(events))
+	for _, ev := range events {
+		tool, _ := ev["tool"].(string)
+		if tool == "" {
+			continue
+		}
+		ok, _ := ev["ok"].(bool)
+		mark := "✗"
+		if ok {
+			mark = "✓"
+		}
+		out = append(out, mark+" "+tool)
+	}
+	return out
+}
+
+func truncateStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
 }
 
 // oracleInspectCmd shows all data stored in Oracle Database.
@@ -1735,6 +2265,8 @@ func oracleInspectCmd() {
 		inspectOverview(db, cfg.Oracle.AgentID)
 	case "memories":
 		inspectMemories(db, cfg.Oracle.AgentID, limit, searchQuery, &cfg.Oracle)
+	case "analytics":
+		inspectAnalytics(db, cfg.Oracle.AgentID, subFilter)
 	case "sessions":
 		inspectSessions(db, cfg.Oracle.AgentID, limit)
 	case "transcripts":
@@ -1763,6 +2295,7 @@ func oracleInspectHelp() {
 	fmt.Println("Tables:")
 	fmt.Println("  (none)        Show overview with row counts for all tables")
 	fmt.Println("  memories      Show stored memories with embeddings")
+	fmt.Println("  analytics     Analytics over transcripts: activity, topics, tools, channels, sessions, week, digest")
 	fmt.Println("  sessions      Show chat sessions")
 	fmt.Println("  transcripts   Show conversation transcripts")
 	fmt.Println("  state         Show key-value state entries")
@@ -1783,6 +2316,552 @@ func oracleInspectHelp() {
 }
 
 // inspectOverview shows row counts and a summary for all PICO_ tables.
+// inspectAnalytics renders a named analytics report over transcripts/state.
+func inspectAnalytics(db *sql.DB, agentID, topic string) {
+	if topic == "" {
+		topic = "week"
+	}
+	var report *oracledb.AnalyticsReport
+	var err error
+	switch topic {
+	case "activity":
+		report, err = oracledb.ActivityReport(db, agentID, 30)
+	case "topics":
+		report, err = oracledb.TopicReport(db, agentID, 30, 20)
+	case "tools":
+		report, err = oracledb.ToolReport(db, agentID)
+	case "channels":
+		report, err = oracledb.ChannelReport(db, agentID, 30)
+	case "sessions":
+		report, err = oracledb.SessionReport(db, agentID, 20)
+	case "digest":
+		report, err = oracledb.Digest(db, agentID, 7)
+	case "week":
+		report, err = oracledb.Digest(db, agentID, 7)
+	default:
+		fmt.Printf("Unknown analytics topic: %s\n", topic)
+		fmt.Println("Topics: activity, topics, tools, channels, sessions, week, digest")
+		return
+	}
+	if err != nil {
+		fmt.Printf("Analytics failed: %v\n", err)
+		return
+	}
+	fmt.Println()
+	fmt.Println(report.Render())
+}
+
+// digestCmd generates a retrospective from transcripts, memories, and sessions.
+func digestCmd() {
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	days := 7
+	noLLM := false
+	for i := 2; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--day", "-d":
+			days = 1
+		case "--week", "-w":
+			days = 7
+		case "--no-llm":
+			noLLM = true
+		case "--since":
+			if i+1 < len(os.Args) {
+				if n, err := strconv.Atoi(os.Args[i+1]); err == nil && n > 0 {
+					days = n
+				}
+				i++
+			}
+		}
+	}
+
+	var raw string
+	if cfg.Oracle.Enabled {
+		conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+		if err != nil {
+			fmt.Printf("Connection failed: %v\n", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+		report, err := oracledb.Digest(conn.DB(), cfg.Oracle.AgentID, days)
+		if err != nil {
+			fmt.Printf("Digest failed: %v\n", err)
+			os.Exit(1)
+		}
+		raw = report.Render()
+	} else {
+		raw = fileDigest(cfg.WorkspacePath())
+	}
+
+	fmt.Println(raw)
+	if noLLM {
+		return
+	}
+
+	// Optional LLM tightening pass (best-effort; never fails the command).
+	provider, err := providers.CreateProvider(cfg)
+	if err != nil {
+		return
+	}
+	resp, err := provider.Chat(context.Background(), []providers.Message{
+		{Role: "system", Content: "You produce a tight 5-8 line retrospective. Write in markdown bullets."},
+		{Role: "user", Content: "Raw data:\n" + raw},
+	}, nil, provider.GetDefaultModel(), nil)
+	if err != nil {
+		return
+	}
+	fmt.Println()
+	fmt.Println("== LLM Tightened ==")
+	fmt.Println(resp.Content)
+}
+
+// fileDigest is the Oracle-off fallback: reads memory dir + daily notes.
+func fileDigest(workspace string) string {
+	var sb strings.Builder
+	ms := agent.NewMemoryStore(workspace)
+	if lt := ms.ReadLongTerm(); lt != "" {
+		sb.WriteString("== Long-term memory ==\n")
+		sb.WriteString(lt + "\n")
+	}
+	if notes := ms.GetRecentDailyNotes(7); notes != "" {
+		sb.WriteString("== Recent daily notes ==\n")
+		sb.WriteString(notes + "\n")
+	}
+	if sb.Len() == 0 {
+		return "(no data yet — chat with the agent first)"
+	}
+	return sb.String()
+}
+
+// reindexCmd recomputes embeddings for a table scope in batches.
+func reindexCmd() {
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	if !cfg.Oracle.Enabled {
+		fmt.Println("Oracle is not enabled in config. Set oracle.enabled = true first.")
+		os.Exit(1)
+	}
+
+	scope := "all"
+	batch := 50
+	force := false
+	for i := 2; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--scope":
+			if i+1 < len(os.Args) {
+				scope = os.Args[i+1]
+				i++
+			}
+		case "--batch":
+			if i+1 < len(os.Args) {
+				if n, err := strconv.Atoi(os.Args[i+1]); err == nil && n > 0 {
+					batch = n
+				}
+				i++
+			}
+		case "--force":
+			force = true
+		}
+	}
+
+	conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+	if err != nil {
+		fmt.Printf("Connection failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+	db := conn.DB()
+
+	var embSvc *oracledb.EmbeddingService
+	if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
+		embSvc = oracledb.NewAPIEmbeddingService(db, cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
+	} else {
+		embSvc, err = oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel)
+		if err != nil {
+			fmt.Printf("Embedding service failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	scopes := []string{scope}
+	if scope == "all" {
+		scopes = []string{"transcripts", "episodes", "code"}
+	}
+	for _, sc := range scopes {
+		n, err := reindexScope(db, cfg.Oracle.AgentID, embSvc, sc, batch, force)
+		if err != nil {
+			fmt.Printf("reindex %s: %v\n", sc, err)
+			continue
+		}
+		fmt.Printf("✓ reindexed %s: %d rows\n", sc, n)
+	}
+}
+
+// reindexScope backfills embedding columns for one table scope.
+func reindexScope(db *sql.DB, agentID string, embSvc *oracledb.EmbeddingService, scope string, batch int, force bool) (int, error) {
+	var table, idCol, textCol, modelName string
+	tsCol := "embedding_ts"
+	hasTS := false
+	switch scope {
+	case "transcripts":
+		table, idCol, textCol = "PICO_TRANSCRIPTS", "id", "content"
+		hasTS = true
+	case "episodes":
+		table, idCol, textCol = "PICO_EPISODES", "episode_id", "goal"
+	case "code":
+		table, idCol, textCol = "PICO_CODE_NODES", "node_id", "summary"
+	case "skills":
+		// Skill embeddings are maintained by `skills find` (UpsertSkill); the
+		// table has no description column to re-embed from.
+		return 0, fmt.Errorf("scope 'skills' is maintained automatically; use `skills find` to refresh embeddings")
+	default:
+		return 0, fmt.Errorf("unknown scope %q", scope)
+	}
+	_ = table
+
+	modelName = embSvc.ModelName()
+	if modelName == "" {
+		return 0, fmt.Errorf("ONNX model name unavailable")
+	}
+
+	cond := "embedding IS NULL"
+	if force {
+		cond = "1=1"
+	}
+	// Transcripts use a numeric identity id; others use VARCHAR2 keys.
+	query := fmt.Sprintf(
+		"SELECT %s, %s FROM %s WHERE %s AND %s IS NOT NULL FETCH FIRST 100000 ROWS ONLY",
+		idCol, textCol, table, cond, textCol)
+	rows, err := db.Query(query)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var ids []interface{}
+	var texts []string
+	for rows.Next() {
+		var id interface{}
+		var text sql.NullString
+		if err := rows.Scan(&id, &text); err != nil || !text.Valid {
+			continue
+		}
+		ids = append(ids, id)
+		texts = append(texts, text.String)
+	}
+
+	updTS := ""
+	if hasTS {
+		updTS = ", " + tsCol + " = CURRENT_TIMESTAMP"
+	}
+	total := 0
+	for i := 0; i < len(ids); i += batch {
+		end := i + batch
+		if end > len(ids) {
+			end = len(ids)
+		}
+		for j := i; j < end; j++ {
+			upd := fmt.Sprintf(
+				"UPDATE %s SET embedding = VECTOR_EMBEDDING(%s USING :1 AS DATA)%s WHERE %s = :2",
+				table, modelName, updTS, idCol)
+			if _, err := db.Exec(upd, texts[j], ids[j]); err != nil {
+				logger.WarnCF("reindex", "row update failed", map[string]interface{}{"error": err.Error()})
+				continue
+			}
+			total++
+		}
+		fmt.Printf("  [%5d/%5d]\n", end, len(ids))
+	}
+	return total, nil
+}
+
+// consolidateCmd promotes successful episodes (older than a day, younger than
+// 30 days) into long-term pattern memories and prunes noise. Deterministic and
+// idempotent (promoted episodes are tracked in PICO_CONSOLIDATION).
+func consolidateCmd() {
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	if !cfg.Oracle.Enabled {
+		fmt.Println("Oracle is not enabled in config. Set oracle.enabled = true first.")
+		os.Exit(1)
+	}
+
+	conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+	if err != nil {
+		fmt.Printf("Connection failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+	db := conn.DB()
+	agentID := cfg.Oracle.AgentID
+
+	var embSvc *oracledb.EmbeddingService
+	if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
+		embSvc = oracledb.NewAPIEmbeddingService(db, cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
+	} else if svc, err := oracledb.NewEmbeddingService(db, cfg.Oracle.ONNXModel); err == nil {
+		embSvc = svc
+	}
+
+	episodes := oracledb.NewEpisodeStore(db, agentID, embSvc)
+	memories := oracledb.NewMemoryStore(db, agentID, embSvc)
+
+	candidates, err := episodes.ConsolidateCandidates(1, 30)
+	if err != nil {
+		fmt.Printf("Consolidate failed: %v\n", err)
+		os.Exit(1)
+	}
+	already := episodes.AlreadyConsolidated()
+
+	promoted := 0
+	var promotedIDs []string
+	for _, ep := range candidates {
+		if already[ep.ID] {
+			continue
+		}
+		steps := splitTrajectory(ep.Trajectory)
+		pattern := fmt.Sprintf("Pattern: %s\nWhat worked: %s\nOutcome: %s",
+			truncateStr(ep.Goal, 200), strings.Join(steps, "; "), truncateStr(ep.Outcome, 200))
+		importance := 0.4 + 0.1*minFloat(5, float64(len(steps)))
+		if _, err := memories.Remember(pattern, importance, "pattern"); err == nil {
+			promotedIDs = append(promotedIDs, ep.ID)
+			promoted++
+		}
+	}
+
+	pruned, _ := episodes.Prune(90)
+	if len(promotedIDs) > 0 || pruned > 0 {
+		_ = episodes.MarkConsolidated(uuid.NewString()[:8], promotedIDs, promoted, pruned)
+	}
+
+	fmt.Printf("✓ Consolidation: %d episodes examined, %d promoted to memory, %d pruned\n",
+		len(candidates), promoted, pruned)
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// indexCmd parses a repo into the code knowledge graph (Spec 03).
+func indexCmd() {
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	if !cfg.Oracle.Enabled {
+		fmt.Println("Oracle is not enabled in config. Set oracle.enabled = true first.")
+		os.Exit(1)
+	}
+
+	repo := ""
+	for i := 2; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--repo":
+			if i+1 < len(os.Args) {
+				repo = os.Args[i+1]
+				i++
+			}
+		default:
+			if repo == "" && !strings.HasPrefix(os.Args[i], "-") {
+				repo = os.Args[i]
+			}
+		}
+	}
+
+	// `picooraclaw index status` lists indexed repos.
+	if repo == "status" {
+		conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+		if err != nil {
+			fmt.Printf("Connection failed: %v\n", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+		gs := oracledb.NewCodeGraphStore(conn.DB(), cfg.Oracle.AgentID, nil)
+		repos, _ := gs.RepoList()
+		fmt.Println("\nIndexed repos:")
+		if len(repos) == 0 {
+			fmt.Println("  (none — run `picooraclaw index <path>`)")
+			return
+		}
+		for _, r := range repos {
+			n, e, _ := gs.Stats(r)
+			fmt.Printf("  ✓ %s  (%d nodes, %d edges)\n", r, n, e)
+		}
+		return
+	}
+
+	if repo == "" {
+		repo = cfg.Oracle.CodeIndexRepo
+	}
+	if repo == "" {
+		fmt.Println("Usage: picooraclaw index <path> [--force]")
+		os.Exit(1)
+	}
+	abs, err := filepath.Abs(repo)
+	if err != nil {
+		fmt.Printf("Bad path: %v\n", err)
+		os.Exit(1)
+	}
+	if fi, err := os.Stat(abs); err != nil || !fi.IsDir() {
+		fmt.Printf("Not a directory: %s\n", abs)
+		os.Exit(1)
+	}
+
+	fmt.Printf("🔎 Parsing %s...\n", abs)
+	res, err := oracledb.ParseRepo(abs, oracledb.DefaultRepoIndexOptions())
+	if err != nil {
+		fmt.Printf("Parse failed: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  parsed %d nodes, %d edges\n", len(res.Nodes), len(res.Edges))
+	if len(res.Nodes) == 0 {
+		fmt.Println("  (no source files found — nothing to index)")
+		return
+	}
+
+	conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+	if err != nil {
+		fmt.Printf("Connection failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+
+	var embSvc *oracledb.EmbeddingService
+	if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
+		embSvc = oracledb.NewAPIEmbeddingService(conn.DB(), cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
+	} else if svc, err := oracledb.NewEmbeddingService(conn.DB(), cfg.Oracle.ONNXModel); err == nil {
+		embSvc = svc
+	}
+	gs := oracledb.NewCodeGraphStore(conn.DB(), cfg.Oracle.AgentID, embSvc)
+
+	n, err := gs.UpsertNodes(abs, res.Nodes)
+	if err != nil {
+		fmt.Printf("Node upsert failed: %v\n", err)
+		os.Exit(1)
+	}
+	if len(res.Edges) > 0 {
+		// Fill repo on edges before upsert.
+		for i := range res.Edges {
+			res.Edges[i].Repo = abs
+		}
+	}
+	e, err := gs.UpsertEdges(abs, res.Edges)
+	if err != nil {
+		fmt.Printf("Edge upsert failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	if cfg.Oracle.CodeIndexRepo == "" {
+		fmt.Println("\n💡 Set PICO_ORACLE_CODE_INDEX_REPO (or oracle.code_index_repo) to this path")
+		fmt.Println("   so the agent can use code_search in conversations.")
+	}
+	fmt.Printf("✓ Indexed %s: %d nodes, %d edges\n", abs, n, e)
+}
+
+// codeSearchCmd is the CLI front-end for code graph queries.
+func codeSearchCmd() {
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	if !cfg.Oracle.Enabled {
+		fmt.Println("Oracle is not enabled in config. Set oracle.enabled = true first.")
+		os.Exit(1)
+	}
+
+	repo := cfg.Oracle.CodeIndexRepo
+	var query, symbol, callersOf, whatCalls string
+	limit := 8
+	depth := 2
+	for i := 2; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--repo":
+			if i+1 < len(os.Args) {
+				repo = os.Args[i+1]
+				i++
+			}
+		case "--symbol":
+			if i+1 < len(os.Args) {
+				symbol = os.Args[i+1]
+				i++
+			}
+		case "--callers-of":
+			if i+1 < len(os.Args) {
+				callersOf = os.Args[i+1]
+				i++
+			}
+		case "--what-calls":
+			if i+1 < len(os.Args) {
+				whatCalls = os.Args[i+1]
+				i++
+			}
+		case "--depth":
+			if i+1 < len(os.Args) {
+				if n, err := strconv.Atoi(os.Args[i+1]); err == nil {
+					depth = n
+				}
+				i++
+			}
+		case "--limit":
+			if i+1 < len(os.Args) {
+				if n, err := strconv.Atoi(os.Args[i+1]); err == nil && n > 0 {
+					limit = n
+				}
+				i++
+			}
+		default:
+			if query == "" && !strings.HasPrefix(os.Args[i], "-") {
+				query = os.Args[i]
+			}
+		}
+	}
+	if repo == "" {
+		fmt.Println("No indexed repo configured. Run `picooraclaw index <path>` and set oracle.code_index_repo.")
+		os.Exit(1)
+	}
+
+	conn, err := oracledb.NewConnectionManager(&cfg.Oracle)
+	if err != nil {
+		fmt.Printf("Connection failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+
+	var embSvc *oracledb.EmbeddingService
+	if cfg.Oracle.EmbeddingProvider == "api" && cfg.Oracle.EmbeddingAPIKey != "" {
+		embSvc = oracledb.NewAPIEmbeddingService(conn.DB(), cfg.Oracle.EmbeddingAPIBase, cfg.Oracle.EmbeddingAPIKey, cfg.Oracle.EmbeddingModel)
+	} else if svc, err := oracledb.NewEmbeddingService(conn.DB(), cfg.Oracle.ONNXModel); err == nil {
+		embSvc = svc
+	}
+	gs := oracledb.NewCodeGraphStore(conn.DB(), cfg.Oracle.AgentID, embSvc)
+	adapter := &codeGraphAdapter{store: gs}
+	tool := tools.NewCodeSearchTool(adapter, repo)
+
+	toolResult := tool.Execute(context.Background(), map[string]interface{}{
+		"query":       query,
+		"symbol":      symbol,
+		"callers_of":  callersOf,
+		"what_calls":  whatCalls,
+		"depth":       float64(depth),
+		"max_results": float64(limit),
+	})
+	fmt.Println(toolResult.ForLLM)
+}
+
 func inspectOverview(db *sql.DB, agentID string) {
 	fmt.Println()
 	fmt.Println("=============================================================")
@@ -2588,6 +3667,19 @@ func (a *webSessionAdapter) DeleteSession(id string) error { return nil }
 // responds with an empty array rather than a 5xx.
 type webMemoryAdapter struct {
 	m *oracledb.MemoryStore
+}
+
+// webStatusAdapter supplies dashboard counts from the live Oracle connection.
+type webStatusAdapter struct {
+	db      *sql.DB
+	agentID string
+}
+
+func (a *webStatusAdapter) Status() map[string]interface{} {
+	if a == nil || a.db == nil {
+		return map[string]interface{}{}
+	}
+	return oracledb.TableCounts(a.db, a.agentID)
 }
 
 func (a *webMemoryAdapter) Search(q string, n int) []web.MemoryResult {

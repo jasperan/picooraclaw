@@ -3,6 +3,9 @@ package oracle
 import (
 	"database/sql"
 	"fmt"
+	"math"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,9 +16,9 @@ import (
 
 // Recall and deduplication tuning constants.
 const (
-	// recallMinScore is the minimum cosine similarity (1 - distance) for a
-	// memory to be returned by Recall.
-	recallMinScore = 0.3
+	// recallMinScore is the minimum fused score for a memory to be returned by
+	// Recall (retained for backward compatibility; RecallOpts uses MinScore).
+	recallMinScore = 0.15
 	// dedupMaxDistance is the maximum cosine distance below which two memories
 	// are treated as near-duplicates (i.e. ~95%+ similarity).
 	dedupMaxDistance = 0.05
@@ -23,6 +26,22 @@ const (
 	// written via WriteLongTerm.
 	defaultLongTermImportance = 0.7
 )
+
+// RecallOptions controls hybrid retrieval. Zero value behaves like the legacy
+// Recall call except for the lower (fused) score floor.
+type RecallOptions struct {
+	Category string  // exact category filter ("" = all)
+	MinScore float64 // fused score floor; 0 = default 0.15
+	Lexical  bool    // enable the lexical channel (default true)
+	Days     int     // only memories created within N days (0 = all)
+}
+
+func (o RecallOptions) normalized() RecallOptions {
+	if o.MinScore <= 0 {
+		o.MinScore = recallMinScore
+	}
+	return o
+}
 
 // MemoryRecallResult represents a single recalled memory with similarity score.
 type MemoryRecallResult struct {
@@ -35,10 +54,11 @@ type MemoryRecallResult struct {
 
 // MemoryStore implements MemoryStoreInterface and OracleMemoryStore backed by Oracle.
 type MemoryStore struct {
-	db        *sql.DB
-	agentID   string
-	embedding *EmbeddingService
-	modelName string // ONNX model name for VECTOR_EMBEDDING() SQL
+	db          *sql.DB
+	agentID     string
+	embedding   *EmbeddingService
+	modelName   string // ONNX model name for VECTOR_EMBEDDING() SQL
+	lexicalMode string // "instr" (default), "text", or "off"
 }
 
 // NewMemoryStore creates a new Oracle-backed memory store.
@@ -53,11 +73,24 @@ func NewMemoryStore(db *sql.DB, agentID string, embedding *EmbeddingService) *Me
 			modelName = ""
 		}
 	}
+	lexMode := getMetaValue(db, "oracle.lexical_mode")
+	if lexMode == "" {
+		lexMode = "instr"
+	}
 	return &MemoryStore{
-		db:        db,
-		agentID:   agentID,
-		embedding: embedding,
-		modelName: modelName,
+		db:          db,
+		agentID:     agentID,
+		embedding:   embedding,
+		modelName:   modelName,
+		lexicalMode: lexMode,
+	}
+}
+
+// SetLexicalMode overrides the lexical channel resolution.
+func (ms *MemoryStore) SetLexicalMode(mode string) {
+	switch mode {
+	case "text", "instr", "off":
+		ms.lexicalMode = mode
 	}
 }
 
@@ -286,79 +319,286 @@ func (ms *MemoryStore) Remember(text string, importance float64, category string
 	return memoryID, nil
 }
 
-// Recall performs semantic similarity search on memories.
+// Recall performs hybrid semantic + lexical search on memories using defaults.
 func (ms *MemoryStore) Recall(query string, maxResults int) ([]MemoryRecallResult, error) {
+	return ms.RecallOpts(query, maxResults, RecallOptions{Lexical: true})
+}
+
+// RecallOpts performs hybrid retrieval: a vector channel and a lexical channel
+// (INSTR-based, privilege-free) fused with reciprocal rank fusion, then
+// re-ranked in Go by importance × recency × accessibility decay.
+func (ms *MemoryStore) RecallOpts(query string, maxResults int, opts RecallOptions) ([]MemoryRecallResult, error) {
 	if ms.embedding == nil {
 		return nil, fmt.Errorf("embedding service not available")
 	}
-
-	var rows *sql.Rows
-	var err error
-
-	if ms.modelName != "" && ms.embedding.Mode() == "onnx" {
-		// Use VECTOR_EMBEDDING() inline for query embedding
-		sqlQuery := fmt.Sprintf(`
-			SELECT memory_id, content, importance, category,
-			       VECTOR_DISTANCE(embedding, VECTOR_EMBEDDING(%s USING :1 AS DATA), COSINE) AS distance
-			FROM PICO_MEMORIES
-			WHERE agent_id = :2 AND embedding IS NOT NULL
-			ORDER BY distance ASC
-			FETCH FIRST :3 ROWS ONLY`, ms.modelName)
-		rows, err = ms.db.Query(sqlQuery, query, ms.agentID, maxResults)
-	} else {
-		// API mode: compute embedding externally, use TO_VECTOR()
-		queryVec, embErr := ms.embedding.EmbedText(query)
-		if embErr != nil {
-			return nil, fmt.Errorf("failed to embed query: %w", embErr)
-		}
-		vecStr := float32SliceToString(queryVec)
-		rows, err = ms.db.Query(`
-			SELECT memory_id, content, importance, category,
-			       VECTOR_DISTANCE(embedding, TO_VECTOR(:1), COSINE) AS distance
-			FROM PICO_MEMORIES
-			WHERE agent_id = :2 AND embedding IS NOT NULL
-			ORDER BY distance ASC
-			FETCH FIRST :3 ROWS ONLY`,
-			vecStr, ms.agentID, maxResults)
+	opts = opts.normalized()
+	if maxResults <= 0 {
+		maxResults = 5
 	}
+
+	// Vector channel query expression + leading binds.
+	var vecExpr string
+	var binds []interface{}
+	if ms.modelName != "" && ms.embedding.Mode() == "onnx" {
+		// Oracle computes the query embedding in-database.
+		vecExpr = fmt.Sprintf("VECTOR_DISTANCE(embedding, VECTOR_EMBEDDING(%s USING :1 AS DATA), COSINE)", ms.modelName)
+		binds = append(binds, query)
+	} else {
+		queryVec, err := ms.embedding.EmbedText(query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to embed query: %w", err)
+		}
+		vecExpr = "VECTOR_DISTANCE(embedding, TO_VECTOR(:1), COSINE)"
+		binds = append(binds, float32SliceToString(queryVec))
+	}
+	binds = append(binds, ms.agentID)
+
+	// Optional filters (category / recency) shared by both channels.
+	var filterSQL string
+	if opts.Category != "" {
+		filterSQL += " AND category = :" + strconv.Itoa(len(binds)+1)
+		binds = append(binds, opts.Category)
+	}
+	if opts.Days > 0 {
+		filterSQL += " AND created_at >= SYSDATE - :" + strconv.Itoa(len(binds)+1)
+		binds = append(binds, opts.Days)
+	}
+
+	// Lexical channel: tokenized INSTR predicates (works on CLOB, no privileges).
+	lexChannel := opts.Lexical && ms.lexicalMode != "off"
+	var lexPred, lexScore string
+	var tokens []string
+	if lexChannel {
+		tokens = lexicalTokens(query)
+		if len(tokens) > 0 {
+			preds := make([]string, 0, len(tokens))
+			scores := make([]string, 0, len(tokens))
+			for i, tok := range tokens {
+				b := len(binds) + 1
+				preds = append(preds, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d)) > 0", b))
+				scores = append(scores, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d))", b))
+				binds = append(binds, tok)
+				_ = i
+			}
+			lexPred = strings.Join(preds, " OR ")
+			lexScore = "(" + strings.Join(scores, " + ") + ")"
+		}
+	}
+
+	sqlQuery := buildHybridRecallSQL(vecExpr, filterSQL, lexChannel, lexPred, lexScore, len(binds)+1, maxResults)
+	binds = append(binds, maxResults) // FETCH FIRST :N
+	rows, err := ms.db.Query(sqlQuery, binds...)
+	if err != nil {
+		// Fall back to the vector-only path if the fused query is unsupported.
+		logger.WarnCF("oracle", "Hybrid recall query failed, falling back to vector-only", map[string]interface{}{"error": err.Error()})
+		return ms.recallVectorOnly(query, maxResults, opts, vecExpr, binds, filterSQL)
+	}
+	defer rows.Close()
+
+	type candidate struct {
+		result   MemoryRecallResult
+		rrf      float64
+		access   int
+		created  time.Time
+		accessed time.Time
+	}
+	var cands []candidate
+	maxRRF := 0.0
+	for rows.Next() {
+		var c candidate
+		var content, category sql.NullString
+		var created, accessed sql.NullTime
+		if err := rows.Scan(&c.result.MemoryID, &content, &c.result.Importance, &category, &c.access, &created, &accessed, &c.rrf); err != nil {
+			continue
+		}
+		if content.Valid {
+			c.result.Text = content.String
+		}
+		if category.Valid {
+			c.result.Category = category.String
+		}
+		c.created = created.Time
+		c.accessed = accessed.Time
+		if c.rrf > maxRRF {
+			maxRRF = c.rrf
+		}
+		cands = append(cands, c)
+	}
+
+	results := make([]MemoryRecallResult, 0, len(cands))
+	var memoryIDs []string
+	for _, c := range cands {
+		c.result.Score = decayScore(c.rrf, maxRRF, c.result.Importance, c.access, c.created, c.accessed)
+		if c.result.Score >= opts.MinScore {
+			results = append(results, c.result)
+			memoryIDs = append(memoryIDs, c.result.MemoryID)
+		}
+	}
+	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+	if len(results) > maxResults {
+		results = results[:maxResults]
+		memoryIDs = memoryIDs[:maxResults]
+	}
+
+	if len(memoryIDs) > 0 {
+		ms.updateAccessTimestamps(memoryIDs)
+	}
+	return results, nil
+}
+
+// recallVectorOnly is the fallback when the fused query fails (e.g. older
+// Oracle without CTE support). It keeps the vector channel and decay scoring.
+func (ms *MemoryStore) recallVectorOnly(query string, maxResults int, opts RecallOptions, vecExpr string, binds []interface{}, filterSQL string) ([]MemoryRecallResult, error) {
+	sqlQuery := "SELECT memory_id, content, importance, category, access_count, created_at, accessed_at, 0.0 FROM (" +
+		"SELECT memory_id, content, importance, category, access_count, created_at, accessed_at, " + vecExpr + " AS dist " +
+		"FROM PICO_MEMORIES WHERE agent_id = :2" + filterSQL + " AND embedding IS NOT NULL" +
+		") ORDER BY dist ASC FETCH FIRST :" + strconv.Itoa(len(binds)) + " ROWS ONLY"
+	rows, err := ms.db.Query(sqlQuery, binds...)
 	if err != nil {
 		return nil, fmt.Errorf("recall query failed: %w", err)
 	}
 	defer rows.Close()
 
-	var results []MemoryRecallResult
-	var memoryIDs []string
-
+	type candidate struct {
+		result   MemoryRecallResult
+		rrf      float64
+		access   int
+		created  time.Time
+		accessed time.Time
+	}
+	var cands []candidate
 	for rows.Next() {
-		var r MemoryRecallResult
-		var content sql.NullString
-		var category sql.NullString
-		var distance float64
-
-		if err := rows.Scan(&r.MemoryID, &content, &r.Importance, &category, &distance); err != nil {
+		var c candidate
+		var content, category sql.NullString
+		var created, accessed sql.NullTime
+		var dist float64
+		if err := rows.Scan(&c.result.MemoryID, &content, &c.result.Importance, &category, &c.access, &created, &accessed, &dist); err != nil {
 			continue
 		}
-
 		if content.Valid {
-			r.Text = content.String
+			c.result.Text = content.String
 		}
 		if category.Valid {
-			r.Category = category.String
+			c.result.Category = category.String
 		}
-		r.Score = 1.0 - distance
-
-		if r.Score >= recallMinScore { // Minimum similarity threshold
-			results = append(results, r)
-			memoryIDs = append(memoryIDs, r.MemoryID)
-		}
+		c.created = created.Time
+		c.accessed = accessed.Time
+		// Emulate RRF magnitude from similarity so decay scoring stays consistent.
+		c.rrf = (1.0 - dist) * 100
+		cands = append(cands, c)
 	}
 
-	// Update access timestamps for recalled memories
+	results := make([]MemoryRecallResult, 0, len(cands))
+	var memoryIDs []string
+	maxRRF := 0.0
+	for _, c := range cands {
+		if c.rrf > maxRRF {
+			maxRRF = c.rrf
+		}
+	}
+	for _, c := range cands {
+		c.result.Score = decayScore(c.rrf, maxRRF, c.result.Importance, c.access, c.created, c.accessed)
+		if c.result.Score >= opts.MinScore {
+			results = append(results, c.result)
+			memoryIDs = append(memoryIDs, c.result.MemoryID)
+		}
+	}
+	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+	if len(results) > maxResults {
+		results = results[:maxResults]
+	}
 	if len(memoryIDs) > 0 {
 		ms.updateAccessTimestamps(memoryIDs)
 	}
-
 	return results, nil
+}
+
+// buildHybridRecallSQL assembles the fused CTE query. Bind layout:
+// :1 vec query expr, :2 agent_id, then filters/tokens, limitBind = limit.
+func buildHybridRecallSQL(vecExpr, filterSQL string, lexChannel bool, lexPred, lexScore string, limitBind, maxResults int) string {
+	if !lexChannel || lexPred == "" {
+		return "SELECT memory_id, content, importance, category, access_count, created_at, accessed_at, 0.0 FROM (" +
+			"SELECT memory_id, content, importance, category, access_count, created_at, accessed_at, " + vecExpr + " AS dist " +
+			"FROM PICO_MEMORIES WHERE agent_id = :2" + filterSQL + " AND embedding IS NOT NULL" +
+			") ORDER BY dist ASC FETCH FIRST :" + strconv.Itoa(limitBind) + " ROWS ONLY"
+	}
+
+	vecSQL := "SELECT * FROM (SELECT memory_id, ROW_NUMBER() OVER (ORDER BY " + vecExpr + ") rn " +
+		"FROM PICO_MEMORIES WHERE agent_id = :2" + filterSQL + " AND embedding IS NOT NULL" +
+		") ORDER BY rn FETCH FIRST 100 ROWS ONLY"
+	lexSQL := "SELECT * FROM (SELECT memory_id, ROW_NUMBER() OVER (ORDER BY " + lexScore + " DESC) rn " +
+		"FROM PICO_MEMORIES WHERE agent_id = :2" + filterSQL + " AND (" + lexPred + ")" +
+		") ORDER BY rn FETCH FIRST 100 ROWS ONLY"
+	return "WITH vec AS (" + vecSQL + "), lex AS (" + lexSQL + "), fused AS (" +
+		"SELECT memory_id, SUM(1.0/(60+rn)) rrf FROM (SELECT memory_id, rn FROM vec UNION ALL SELECT memory_id, rn FROM lex) GROUP BY memory_id) " +
+		"SELECT m.memory_id, m.content, m.importance, m.category, m.access_count, m.created_at, m.accessed_at, f.rrf " +
+		"FROM fused f JOIN PICO_MEMORIES m ON m.memory_id = f.memory_id " +
+		"WHERE m.agent_id = :2" +
+		" ORDER BY f.rrf DESC FETCH FIRST :" + strconv.Itoa(limitBind) + " ROWS ONLY"
+}
+
+// decayScore ranks a candidate by hybrid evidence (rrf), declared importance,
+// and retrievability (accessibility + Ebbinghaus recency decay). Evidence-gated:
+// a candidate with no retrieval evidence at all scores 0 and is filtered out.
+func decayScore(rrf, maxRRF, importance float64, accessCount int, created, accessed time.Time) float64 {
+	rrfNorm := 0.0
+	if maxRRF > 0 {
+		rrfNorm = rrf / maxRRF
+	}
+	acc := 1.0
+	if accessCount > 0 {
+		acc = 1.0 / (1.0 + math.Log2(float64(accessCount)+1.0))
+	}
+	ref := created
+	if !accessed.IsZero() {
+		ref = accessed
+	}
+	days := time.Since(ref).Hours() / 24
+	if days < 0 {
+		days = 0
+	}
+	recency := math.Exp(-0.03 * days)
+	retrievability := 0.5*acc + 0.5*recency
+	quality := 0.4 + 0.35*importance + 0.25*retrievability
+	return rrfNorm * quality
+}
+
+// lexicalTokens splits a query into lowercase search tokens, keeping the full
+// trimmed phrase first (so exact-string lookups like "ORA-30081" match) and
+// dropping stopwords and single characters.
+func lexicalTokens(query string) []string {
+	var out []string
+	phrase := strings.ToLower(strings.TrimSpace(query))
+	if phrase != "" {
+		out = append(out, phrase)
+	}
+	re := regexp.MustCompile(`[^a-z0-9]+`)
+	seen := map[string]bool{}
+	for _, tok := range re.Split(phrase, -1) {
+		if len(tok) < 2 {
+			continue
+		}
+		if stopwords[tok] {
+			continue
+		}
+		if !seen[tok] {
+			seen[tok] = true
+			out = append(out, tok)
+		}
+	}
+	if len(out) > 8 {
+		out = out[:8]
+	}
+	return out
+}
+
+var stopwords = map[string]bool{
+	"the": true, "and": true, "for": true, "with": true, "what": true,
+	"how": true, "why": true, "when": true, "where": true, "who": true,
+	"that": true, "this": true, "from": true, "have": true, "was": true,
+	"were": true, "are": true, "you": true, "your": true, "about": true,
+	"into": true, "will": true, "would": true, "can": true, "could": true,
+	"did": true, "does": true, "not": true, "has": true, "been": true,
 }
 
 // Forget deletes a memory by ID.

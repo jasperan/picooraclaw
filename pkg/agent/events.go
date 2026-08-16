@@ -35,3 +35,18 @@ type EventEmitter interface {
 type NoopEmitter struct{}
 
 func (NoopEmitter) Emit(Event) {}
+
+// MultiEmitter fans events out to several emitters, tolerating nil entries.
+type MultiEmitter struct {
+	Emitters []EventEmitter
+}
+
+// Emit forwards to every non-nil emitter.
+func (m MultiEmitter) Emit(e Event) {
+	for _, em := range m.Emitters {
+		if em == nil {
+			continue
+		}
+		em.Emit(e)
+	}
+}

@@ -48,6 +48,7 @@ type Channel struct {
 	addr     string
 	sessions SessionLister
 	memory   MemorySearcher
+	status   StatusProvider
 }
 
 func NewChannel(cfg config.WebConfig, msgBus *bus.MessageBus) (*Channel, error) {

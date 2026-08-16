@@ -21,10 +21,12 @@ type chatResponse struct {
 }
 
 func (c *Channel) registerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/", c.handleUI)
 	mux.HandleFunc("/v1/chat", c.handleChat)
 	mux.HandleFunc("/v1/events", c.handleEvents)
 	mux.HandleFunc("/v1/sessions", c.handleSessions)
 	mux.HandleFunc("/v1/memory", c.handleMemory)
+	mux.HandleFunc("/v1/status", c.handleStatus)
 }
 
 func (c *Channel) authMiddleware(next http.Handler) http.Handler {

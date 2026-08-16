@@ -612,14 +612,22 @@ picooraclaw oracle-inspect [table] [options]
 | `picooraclaw onboard` | Initialize config and workspace |
 | `picooraclaw agent -m "..."` | One-shot chat |
 | `picooraclaw agent` | Interactive chat mode |
+| `picooraclaw agent --voice note.wav --speak` | Talk to the agent (Groq STT + system TTS) |
 | `picooraclaw gateway` | Start long-running service with channels |
 | `picooraclaw status` | Show status |
-| `picooraclaw setup-oracle` | Initialize Oracle schema + ONNX model |
+| `picooraclaw setup-oracle` | Initialize Oracle schema + ONNX model (+ `--duality` for JSON views) |
 | `picooraclaw oracle-inspect` | Inspect data stored in Oracle |
+| `picooraclaw oracle-inspect analytics` | Activity/topics/tools/channels/sessions breakdown |
 | `picooraclaw oracle-inspect memories -s "query"` | Semantic search over memories |
 | `picooraclaw seed-demo` | Populate Oracle with realistic demo data |
-| `picooraclaw cron list` | List scheduled jobs |
-| `picooraclaw skills list` | List installed skills |
+| `picooraclaw index <path>` | Parse a repo into the Oracle code knowledge graph |
+| `picooraclaw code-search "query"` | Search the indexed codebase (NL or `--callers-of`) |
+| `picooraclaw digest [--day|--week]` | Auto retrospective from transcripts + memories |
+| `picooraclaw consolidate` | Promote successful runs into long-term pattern memories |
+| `picooraclaw reindex [--scope ...]` | Backfill/recompute embeddings |
+| `picooraclaw cron list` | List scheduled jobs (incl. built-in morning brief / EOD summary) |
+| `picooraclaw skills list` | List installed skills (with usage counts) |
+| `picooraclaw skills find "query"` | Semantically search installed skills |
 
 ---
 
@@ -989,13 +997,24 @@ docker compose run --rm picooraclaw-agent -m "What is 2+2?"
 - Single static binary (~10MB RAM), runs on RISC-V/ARM64/x86_64
 - Ollama, OpenRouter, Anthropic, OpenAI, Gemini, DeepSeek, Groq, NVIDIA, vLLM, Moonshot, and GitHub Copilot providers
 - Optional [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/) backend with AI Vector Search (384-dim ONNX embeddings)
+- **Hybrid memory recall** — vector + exact-term retrieval fused with reciprocal rank fusion, re-ranked by importance × recency × accessibility decay
+- **Episodic memory** — every run is recorded as a replayable episode; `consolidate` promotes successful runs into long-term pattern memories
+- **Code knowledge graph** — `index` parses a repo into an Oracle property graph (imports, calls, co-edits); `code_search` answers natural-language and structural questions with real paths
+- **Live transcript audit log** — every conversation is persisted and semantically searchable (`recall --scope transcripts`)
+- **Self-querying brain** — `digest` / `oracle-inspect analytics` summarize what the agent actually did
+- **Single-file web UI** — served by the web channel at `/`: chat with live tool chips, memory search, sessions, dashboard
+- **Proactive agent** — config-gated morning brief + end-of-day summary cron jobs
+- **Voice** — `agent --voice <file>` / `--voice-record` (Groq STT), optional system-TTS speak-back
 - Chat channels: Telegram, WhatsApp, Feishu, Discord, MaixCam, QQ, DingTalk, Slack, LINE, OneBot, Web
 - Scheduled tasks via cron expressions
 - Heartbeat periodic tasks
-- Skills system (workspace, global, GitHub-hosted)
+- Skills system (workspace, global, GitHub-hosted) with usage tracking + semantic search
 - Security sandbox with workspace restriction
 - Optional: [Oracle Autonomous AI Database](https://www.oracle.com/autonomous-database/) for managed cloud deployment
 - Graceful fallback to file-based storage when Oracle is unavailable
+- Versioned schema migrations (`schema_version` in `PICO_META`) with `reindex` for embedding backfills
+
+Detailed design docs for these features live in [`docs/specs/`](docs/specs/).
 
 ---
 

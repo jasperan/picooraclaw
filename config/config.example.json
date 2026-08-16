@@ -141,7 +141,18 @@
     "embedding_provider": "api",
     "embedding_api_base": "",
     "embedding_api_key": "",
-    "embedding_model": "embedding-3"
+    "embedding_model": "embedding-3",
+    "lexical_mode": "auto",
+    "code_index_repo": ""
+  },
+  "proactive": {
+    "enabled": true,
+    "brief_cron": "0 8 * * *",
+    "eod_cron": "0 18 * * *",
+    "brief_channel": ""
+  },
+  "voice": {
+    "speaker": "auto"
   },
   "heartbeat": {
     "enabled": true,

@@ -462,3 +462,88 @@ func TestAuthMiddleware_RejectsWrongToken(t *testing.T) {
 		t.Fatalf("correct-token status %d, want 200", resp.StatusCode)
 	}
 }
+
+func TestHandleUI_ServesHTML(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET / status = %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Fatalf("content type = %q", ct)
+	}
+	for _, want := range []string{"PicoOraClaw", "tab-chat", "/v1/events", "tab-dash"} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("UI HTML missing %q", want)
+		}
+	}
+}
+
+func TestHandleStatus_JSON(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.SetStatus(fakeStatus{})
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if out["memories"] != float64(3) {
+		t.Fatalf("status memories = %v, want 3", out["memories"])
+	}
+}
+
+func TestHandleStatus_EmptyWhenUnset(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, err := NewChannel(cfg, msgBus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/v1/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(body)) != "{}" {
+		t.Fatalf("status without provider = %q, want {}", string(body))
+	}
+}
+
+type fakeStatus struct{}
+
+func (fakeStatus) Status() map[string]interface{} {
+	return map[string]interface{}{"memories": 3, "schema_version": "1.3.0"}
+}

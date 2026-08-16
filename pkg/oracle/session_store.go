@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,10 +23,11 @@ type OracleSession struct {
 
 // SessionStore implements SessionManagerInterface backed by Oracle.
 type SessionStore struct {
-	db       *sql.DB
-	agentID  string
-	sessions map[string]*OracleSession
-	mu       sync.RWMutex
+	db         *sql.DB
+	agentID    string
+	sessions   map[string]*OracleSession
+	transcript *TranscriptStore // optional live audit-log writer
+	mu         sync.RWMutex
 }
 
 // NewSessionStore creates a new Oracle-backed session store.
@@ -58,6 +60,17 @@ func (ss *SessionStore) GetOrCreate(key string) interface{} {
 	return s
 }
 
+// DB exposes the underlying connection (used by gateway wiring for state reads).
+func (ss *SessionStore) DB() *sql.DB { return ss.db }
+
+// SetTranscriptRecorder attaches a live audit-log writer. All messages added
+// through AddMessage/AddFullMessage are appended to PICO_TRANSCRIPTS.
+func (ss *SessionStore) SetTranscriptRecorder(ts *TranscriptStore) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.transcript = ts
+}
+
 // AddMessage adds a simple role/content message to the session.
 func (ss *SessionStore) AddMessage(key, role, content string) {
 	ss.AddFullMessage(key, providers.Message{
@@ -83,6 +96,24 @@ func (ss *SessionStore) AddFullMessage(key string, msg providers.Message) {
 
 	s.Messages = append(s.Messages, msg)
 	s.Updated = time.Now()
+
+	// Live audit log (best-effort, outside the lock to avoid slow embedding
+	// writes blocking session state).
+	if ss.transcript != nil {
+		content := msg.Content
+		if content == "" && len(msg.ToolCalls) > 0 {
+			names := make([]string, 0, len(msg.ToolCalls))
+			for _, tc := range msg.ToolCalls {
+				if tc.Name != "" {
+					names = append(names, tc.Name)
+				}
+			}
+			content = "tool_calls: [" + strings.Join(names, ", ") + "]"
+		}
+		if content != "" {
+			go ss.transcript.Append(key, msg.Role, content)
+		}
+	}
 }
 
 // GetHistory returns a copy of the session's message history.

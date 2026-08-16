@@ -52,7 +52,24 @@ type Config struct {
 	Heartbeat HeartbeatConfig `json:"heartbeat"`
 	Devices   DevicesConfig   `json:"devices"`
 	Oracle    OracleDBConfig  `json:"oracle"`
+	Proactive ProactiveConfig `json:"proactive"`
+	Voice     VoiceConfig     `json:"voice"`
 	mu        sync.RWMutex
+}
+
+// VoiceConfig controls CLI voice input/output (Spec 07).
+type VoiceConfig struct {
+	Speaker string `json:"speaker" env:"PICOCLAW_VOICE_SPEAKER"` // auto | espeak | say | off
+}
+
+// ProactiveConfig controls built-in scheduled agent jobs (morning brief,
+// end-of-day summary). Both are plain cron jobs — user-disablable and visible
+// via `picooraclaw cron list`.
+type ProactiveConfig struct {
+	Enabled      bool   `json:"enabled" env:"PICOCLAW_PROACTIVE_ENABLED"`
+	BriefCron    string `json:"brief_cron" env:"PICOCLAW_PROACTIVE_BRIEF_CRON"`       // default "0 8 * * *"
+	EODCron      string `json:"eod_cron" env:"PICOCLAW_PROACTIVE_EOD_CRON"`           // default "0 18 * * *"
+	BriefChannel string `json:"brief_channel" env:"PICOCLAW_PROACTIVE_BRIEF_CHANNEL"` // "" = last used channel
 }
 
 type AgentsConfig struct {
@@ -202,6 +219,12 @@ type OracleDBConfig struct {
 	EmbeddingAPIBase  string `json:"embedding_api_base" env:"PICO_ORACLE_EMBEDDING_API_BASE"`
 	EmbeddingAPIKey   string `json:"embedding_api_key" env:"PICO_ORACLE_EMBEDDING_API_KEY"`
 	EmbeddingModel    string `json:"embedding_model" env:"PICO_ORACLE_EMBEDDING_MODEL"`
+	// CodeIndexRepo is the repository root indexed for code_search (Spec 03).
+	// Empty disables the code graph tool.
+	CodeIndexRepo string `json:"code_index_repo" env:"PICO_ORACLE_CODE_INDEX_REPO"`
+	// LexicalMode overrides recall's lexical channel: "auto" (probe), "text",
+	// "instr" (INSTR fallback), or "off".
+	LexicalMode string `json:"lexical_mode" env:"PICO_ORACLE_LEXICAL_MODE"`
 }
 
 func (o *OracleDBConfig) IsADB() bool {
@@ -402,6 +425,14 @@ func DefaultConfig() *Config {
 		Devices: DevicesConfig{
 			Enabled:    false,
 			MonitorUSB: true,
+		},
+		Proactive: ProactiveConfig{
+			Enabled:   true,
+			BriefCron: "0 8 * * *",
+			EODCron:   "0 18 * * *",
+		},
+		Voice: VoiceConfig{
+			Speaker: "auto",
 		},
 		Oracle: OracleDBConfig{
 			Enabled:           false,

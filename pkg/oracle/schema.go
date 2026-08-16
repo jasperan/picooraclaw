@@ -150,11 +150,27 @@ func InitSchema(db *sql.DB) error {
 		}
 	}
 
-	// Set schema version
-	setSchemaVersion(db, "1.0.0")
+	// Apply additive migrations (transcripts embeddings, episodes, code graph,
+	// skill usage) in version order. Idempotent: skips already-applied versions.
+	if err := applyMigrations(db); err != nil {
+		// Migration failures are non-fatal for the base schema; the version
+		// stays behind so the step retries on next boot.
+		logger.WarnCF("oracle", "Migration error", map[string]interface{}{"error": err.Error()})
+	}
+
+	// Base schema version when no migrations exist yet
+	setSchemaVersionIfEmpty(db)
 
 	logger.InfoC("oracle", "Schema initialization complete")
 	return nil
+}
+
+// setSchemaVersionIfEmpty stamps 1.0.0 only when no version is recorded yet
+// (migrations set their own higher versions as they apply).
+func setSchemaVersionIfEmpty(db *sql.DB) {
+	if currentSchemaVersion(db) == "0.0.0" {
+		setSchemaVersion(db, "1.0.0")
+	}
 }
 
 // setSchemaVersion updates or inserts the schema version in PICO_META.
