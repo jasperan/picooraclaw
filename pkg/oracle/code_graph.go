@@ -209,11 +209,12 @@ func (gs *CodeGraphStore) SearchNL(repo, query string, limit int) ([]CodeSearchH
 	order := []string{}
 	for rows.Next() {
 		var h CodeSearchHit
-		var doc sql.NullString
+		var doc, sig sql.NullString
 		var dist float64
-		if err := rows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &h.Signature, &doc, &h.Line, &dist); err != nil {
+		if err := rows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &sig, &doc, &h.Line, &dist); err != nil {
 			continue
 		}
+		h.Signature = sig.String
 		h.Doc = doc.String
 		h.Score = 1.0 - dist
 		if h.Score >= 0.25 {
@@ -243,9 +244,12 @@ func (gs *CodeGraphStore) SearchNL(repo, query string, limit int) ([]CodeSearchH
 			defer lexRows.Close()
 			for lexRows.Next() {
 				var h CodeSearchHit
-				if err := lexRows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &h.Signature, &h.Doc, &h.Line); err != nil {
+				var doc, sig sql.NullString
+				if err := lexRows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &sig, &doc, &h.Line); err != nil {
 					continue
 				}
+				h.Signature = sig.String
+				h.Doc = doc.String
 				if existing, ok := vec[h.NodeID]; ok {
 					h.Score = existing.Score + 0.15 // lexical boost
 				} else {
@@ -327,6 +331,8 @@ func (gs *CodeGraphStore) traverse(repo, symbol string, depth, limit int, caller
 		direction, startCol = "src_node_id", "dst_node_id"
 	}
 
+	// Every bind placeholder appears exactly once (go-ora quirk): agent and
+	// repo are duplicated per occurrence.
 	q := fmt.Sprintf(`
 		WITH reach(node_id, depth) AS (
 			SELECT %s, 1 FROM PICO_CODE_EDGES
@@ -334,17 +340,17 @@ func (gs *CodeGraphStore) traverse(repo, symbol string, depth, limit int, caller
 			UNION ALL
 			SELECT e.%s, r.depth + 1
 			FROM PICO_CODE_EDGES e JOIN reach r ON e.%s = r.node_id
-			WHERE e.agent_id = :2 AND e.repo = :3 AND e.kind = 'calls' AND r.depth < :4
+			WHERE e.agent_id = :4 AND e.repo = :5 AND e.kind = 'calls' AND r.depth < :6
 		)
-		SELECT n.node_id, n.kind, n.name, n.path, NVL(n.signature,''), NVL(n.doc,''), n.start_line, MIN(r.depth)
+		SELECT n.node_id, n.kind, n.name, n.path, NVL(n.signature,' '), n.start_line, MIN(r.depth)
 		FROM reach r JOIN PICO_CODE_NODES n ON n.node_id = r.node_id
-		WHERE n.agent_id = :2 AND n.repo = :3
-		GROUP BY n.node_id, n.kind, n.name, n.path, NVL(n.signature,''), NVL(n.doc,''), n.start_line
+		WHERE n.agent_id = :7 AND n.repo = :8
+		GROUP BY n.node_id, n.kind, n.name, n.path, NVL(n.signature,' '), n.start_line
 		ORDER BY MIN(r.depth), n.name
-		FETCH FIRST :5 ROWS ONLY`,
-		direction, startCol, direction, startCol)
+		FETCH FIRST %d ROWS ONLY`,
+		direction, startCol, direction, startCol, limit)
 
-	rows, err := gs.db.Query(q, srcID, gs.agentID, repo, depth, limit)
+	rows, err := gs.db.Query(q, srcID, gs.agentID, repo, gs.agentID, repo, depth, gs.agentID, repo)
 	if err != nil {
 		return nil, fmt.Errorf("code traversal failed: %w", err)
 	}
@@ -353,10 +359,12 @@ func (gs *CodeGraphStore) traverse(repo, symbol string, depth, limit int, caller
 	var out []CodeSearchHit
 	for rows.Next() {
 		var h CodeSearchHit
+		var sig sql.NullString
 		var d int
-		if err := rows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &h.Signature, &h.Doc, &h.Line, &d); err != nil {
+		if err := rows.Scan(&h.NodeID, &h.Kind, &h.Name, &h.Path, &sig, &h.Line, &d); err != nil {
 			continue
 		}
+		h.Signature = sig.String
 		h.Score = 1.0 - float64(d)*0.1
 		out = append(out, h)
 	}

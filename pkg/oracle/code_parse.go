@@ -90,7 +90,25 @@ func ParseRepo(root string, opts RepoIndexOptions) (*ParseResult, error) {
 			res.Edges = append(res.Edges, CodeEdge{Repo: "", Src: pi.Src, Dst: dst, Kind: "imports", Weight: 1})
 		}
 	}
+	res.dedupeEdges()
 	return res, nil
+}
+
+// dedupeEdges collapses edges with identical IDs (multiple call sites of the
+// same function or repeated import candidates) so UpsertEdges never hits the
+// unique constraint.
+func (res *ParseResult) dedupeEdges() {
+	seen := make(map[string]bool, len(res.Edges))
+	out := res.Edges[:0]
+	for _, e := range res.Edges {
+		id := CodeEdgeID(e.Kind, e.Src, e.Dst)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, e)
+	}
+	res.Edges = out
 }
 
 // addImport queues an import edge for the post-pass.

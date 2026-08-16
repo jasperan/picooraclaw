@@ -119,13 +119,12 @@ var migrations = []Migration{
 			_ = execTolerating(db, []string{"ORA-00955", "ORA-01408"},
 				`CREATE VECTOR INDEX IDX_PICO_CODE_NODES_VEC ON PICO_CODE_NODES(embedding)
 				 ORGANIZATION NEIGHBOR PARTITIONS DISTANCE COSINE WITH TARGET ACCURACY 95`)
-			_ = execTolerating(db, []string{"ORA-00955", "ORA-01408", "ORA-01031", "ORA-00942"},
+			_ = execTolerating(db, []string{"ORA-00955", "ORA-01408", "ORA-01031", "ORA-00942", "ORA-42405"},
 				`CREATE PROPERTY GRAPH PICO_CODE_GRAPH
-				 VERTEX TABLES (PICO_CODE_NODES AS NODE KEY (node_id)
-				                PROPERTIES (name, kind, path, summary))
+				 VERTEX TABLES (PICO_CODE_NODES)
 				 EDGE TABLES (PICO_CODE_EDGES AS EDGE KEY (edge_id)
-				              SOURCE KEY (src_node_id) REFERENCES PICO_CODE_NODES(node_id)
-				              DESTINATION KEY (dst_node_id) REFERENCES PICO_CODE_NODES(node_id)
+				              SOURCE KEY (src_node_id) REFERENCES PICO_CODE_NODES (node_id)
+				              DESTINATION KEY (dst_node_id) REFERENCES PICO_CODE_NODES (node_id)
 				              PROPERTIES (kind, weight))`)
 			// Spec 08: skill usage tracking.
 			_ = execTolerating(db, []string{"ORA-00955"},
@@ -176,17 +175,22 @@ func currentSchemaVersion(db *sql.DB) string {
 	return v.String
 }
 
-// setMetaValue upserts an arbitrary PICO_META key/value.
+// setMetaValue upserts an arbitrary PICO_META key/value. The key is an
+// internal constant, embedded as a SQL literal exactly like setSchemaVersion
+// (avoids go-ora positional-bind quirks with MERGE).
 func setMetaValue(db *sql.DB, key, value string) error {
+	if strings.ContainsAny(key, "'\"") {
+		return fmt.Errorf("invalid meta key %q", key)
+	}
 	_, err := db.Exec(`
         MERGE INTO PICO_META m
-        USING (SELECT :1 AS meta_key FROM DUAL) s
+        USING (SELECT '`+key+`' AS meta_key FROM DUAL) s
         ON (m.meta_key = s.meta_key)
         WHEN MATCHED THEN
-            UPDATE SET meta_value = :2, updated_at = CURRENT_TIMESTAMP
+            UPDATE SET meta_value = :1, updated_at = CURRENT_TIMESTAMP
         WHEN NOT MATCHED THEN
-            INSERT (meta_key, meta_value) VALUES (:1, :3)
-    `, key, value, value)
+            INSERT (meta_key, meta_value) VALUES ('`+key+`', :2)
+    `, value, value)
 	if err != nil {
 		logger.WarnCF("oracle", "Failed to set meta value", map[string]interface{}{"key": key, "error": err.Error()})
 	}

@@ -509,13 +509,15 @@ func TestMemoryStore_RecallAPIAndONNX(t *testing.T) {
 		defer closeServer()
 
 		store := NewMemoryStore(db, "agent-1", embedding)
-		rows := sqlmock.NewRows([]string{"memory_id", "content", "importance", "category", "access_count", "created_at", "accessed_at", "rrf"}).
-			AddRow("mem-1", "keep this", 0.9, "note", 0, time.Now(), time.Time{}, 1.0).
-			AddRow("mem-2", "drop this", 0.1, "note", 0, time.Now(), time.Time{}, 0.0)
-		// Hybrid query: vec(:1) + agent(:2) + lexical tokens(:3..5) + limit(:6)
-		mock.ExpectQuery("WITH vec AS").
-			WithArgs("[0.2,0.4]", "agent-1", "find it", "find", "it", 3).
-			WillReturnRows(rows)
+		// Vector channel (args: vec(:1), agent(:2)); lexical channel (agent(:1) + tokens).
+		vecRows := sqlmock.NewRows([]string{"memory_id", "content", "importance", "category", "access_count", "created_at", "accessed_at", "dist"}).
+			AddRow("mem-1", "keep this", 0.9, "note", 0, time.Now(), time.Time{}, 0.1)
+		mock.ExpectQuery("SELECT memory_id, content, importance, category, access_count").
+			WithArgs("[0.2,0.4]", "agent-1").
+			WillReturnRows(vecRows)
+		mock.ExpectQuery(`SELECT memory_id, \(`).
+			WithArgs("agent-1", "find it", "find", "it").
+			WillReturnRows(sqlmock.NewRows([]string{"memory_id", "score"}))
 		mock.ExpectExec("UPDATE PICO_MEMORIES SET accessed_at").
 			WithArgs("mem-1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -545,12 +547,14 @@ func TestMemoryStore_RecallAPIAndONNX(t *testing.T) {
 		}
 		store := NewMemoryStore(db, "agent-1", embedding)
 
-		rows := sqlmock.NewRows([]string{"memory_id", "content", "importance", "category", "access_count", "created_at", "accessed_at", "rrf"}).
-			AddRow("mem-onnx", "onnx result", 0.6, "note", 0, time.Now(), time.Time{}, 1.0)
-		// Hybrid query: vec expr(:1) + agent(:2) + lexical tokens(:3..5) + limit(:6)
-		mock.ExpectQuery("WITH vec AS").
-			WithArgs("find it", "agent-1", "find it", "find", "it", 2).
-			WillReturnRows(rows)
+		vecRows := sqlmock.NewRows([]string{"memory_id", "content", "importance", "category", "access_count", "created_at", "accessed_at", "dist"}).
+			AddRow("mem-onnx", "onnx result", 0.6, "note", 0, time.Now(), time.Time{}, 0.2)
+		mock.ExpectQuery("SELECT memory_id, content, importance, category, access_count").
+			WithArgs("find it", "agent-1").
+			WillReturnRows(vecRows)
+		mock.ExpectQuery(`SELECT memory_id, \(`).
+			WithArgs("agent-1", "find it", "find", "it").
+			WillReturnRows(sqlmock.NewRows([]string{"memory_id", "score"}))
 		mock.ExpectExec("UPDATE PICO_MEMORIES SET accessed_at").
 			WithArgs("mem-onnx").
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -599,13 +603,10 @@ func TestMemoryStore_RecallErrorPathsAndHelpers(t *testing.T) {
 			t.Fatalf("NewEmbeddingService failed: %v", err)
 		}
 		store := NewMemoryStore(db, "agent-1", embedding)
-		// Hybrid query fails, then the vector-only fallback also fails → error.
-		mock.ExpectQuery("WITH vec AS").
-			WithArgs("find it", "agent-1", "find it", "find", "it", 3).
-			WillReturnError(errors.New("query failed"))
+		// Vector channel fails → Recall fails.
 		mock.ExpectQuery("SELECT memory_id, content, importance, category, access_count").
-			WithArgs("find it", "agent-1", "find it", "find", "it", 3).
-			WillReturnError(errors.New("fallback failed"))
+			WithArgs("find it", "agent-1").
+			WillReturnError(errors.New("query failed"))
 
 		if _, err := store.Recall("find it", 3); err == nil {
 			t.Fatal("Recall should fail on query errors")

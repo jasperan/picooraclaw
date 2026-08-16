@@ -3697,6 +3697,7 @@ func (a *webMemoryAdapter) Search(q string, n int) []web.MemoryResult {
 			ID:    r.MemoryID,
 			Text:  r.Text,
 			Score: r.Score,
+			Date:  r.CreatedAt.Unix(),
 		})
 	}
 	return out

@@ -45,11 +45,14 @@ func (o RecallOptions) normalized() RecallOptions {
 
 // MemoryRecallResult represents a single recalled memory with similarity score.
 type MemoryRecallResult struct {
-	MemoryID   string  `json:"memory_id"`
-	Text       string  `json:"text"`
-	Importance float64 `json:"importance"`
-	Category   string  `json:"category"`
-	Score      float64 `json:"score"`
+	MemoryID    string    `json:"memory_id"`
+	Text        string    `json:"text"`
+	Importance  float64   `json:"importance"`
+	Category    string    `json:"category"`
+	Score       float64   `json:"score"`
+	AccessCount int       `json:"access_count,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+	AccessedAt  time.Time `json:"accessed_at,omitempty"`
 }
 
 // MemoryStore implements MemoryStoreInterface and OracleMemoryStore backed by Oracle.
@@ -325,8 +328,13 @@ func (ms *MemoryStore) Recall(query string, maxResults int) ([]MemoryRecallResul
 }
 
 // RecallOpts performs hybrid retrieval: a vector channel and a lexical channel
-// (INSTR-based, privilege-free) fused with reciprocal rank fusion, then
-// re-ranked in Go by importance × recency × accessibility decay.
+// (INSTR-based, privilege-free), fused with reciprocal rank fusion in Go, then
+// re-ranked by importance × recency × accessibility decay.
+//
+// go-ora quirk: every bind placeholder must appear exactly once per statement,
+// so the fused query is split into two simple single-use-bind queries and the
+// fusion happens in Go. This is equivalent to a single SQL RRF query and is
+// robust across Oracle versions and driver behaviors.
 func (ms *MemoryStore) RecallOpts(query string, maxResults int, opts RecallOptions) ([]MemoryRecallResult, error) {
 	if ms.embedding == nil {
 		return nil, fmt.Errorf("embedding service not available")
@@ -336,114 +344,259 @@ func (ms *MemoryStore) RecallOpts(query string, maxResults int, opts RecallOptio
 		maxResults = 5
 	}
 
-	// Vector channel query expression + leading binds.
-	var vecExpr string
-	var binds []interface{}
-	if ms.modelName != "" && ms.embedding.Mode() == "onnx" {
-		// Oracle computes the query embedding in-database.
-		vecExpr = fmt.Sprintf("VECTOR_DISTANCE(embedding, VECTOR_EMBEDDING(%s USING :1 AS DATA), COSINE)", ms.modelName)
-		binds = append(binds, query)
-	} else {
-		queryVec, err := ms.embedding.EmbedText(query)
-		if err != nil {
-			return nil, fmt.Errorf("failed to embed query: %w", err)
-		}
-		vecExpr = "VECTOR_DISTANCE(embedding, TO_VECTOR(:1), COSINE)"
-		binds = append(binds, float32SliceToString(queryVec))
-	}
-	binds = append(binds, ms.agentID)
-
-	// Optional filters (category / recency) shared by both channels.
-	var filterSQL string
-	if opts.Category != "" {
-		filterSQL += " AND category = :" + strconv.Itoa(len(binds)+1)
-		binds = append(binds, opts.Category)
-	}
-	if opts.Days > 0 {
-		filterSQL += " AND created_at >= SYSDATE - :" + strconv.Itoa(len(binds)+1)
-		binds = append(binds, opts.Days)
-	}
-
-	// Lexical channel: tokenized INSTR predicates (works on CLOB, no privileges).
-	lexChannel := opts.Lexical && ms.lexicalMode != "off"
-	var lexPred, lexScore string
-	var tokens []string
-	if lexChannel {
-		tokens = lexicalTokens(query)
-		if len(tokens) > 0 {
-			preds := make([]string, 0, len(tokens))
-			scores := make([]string, 0, len(tokens))
-			for i, tok := range tokens {
-				b := len(binds) + 1
-				preds = append(preds, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d)) > 0", b))
-				scores = append(scores, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d))", b))
-				binds = append(binds, tok)
-				_ = i
-			}
-			lexPred = strings.Join(preds, " OR ")
-			lexScore = "(" + strings.Join(scores, " + ") + ")"
-		}
-	}
-
-	sqlQuery := buildHybridRecallSQL(vecExpr, filterSQL, lexChannel, lexPred, lexScore, len(binds)+1, maxResults)
-	binds = append(binds, maxResults) // FETCH FIRST :N
-	rows, err := ms.db.Query(sqlQuery, binds...)
+	// --- Channel A: vector (simple query, single-use binds) ---
+	vecRows, err := ms.vectorChannel(query, opts)
 	if err != nil {
-		// Fall back to the vector-only path if the fused query is unsupported.
-		logger.WarnCF("oracle", "Hybrid recall query failed, falling back to vector-only", map[string]interface{}{"error": err.Error()})
-		return ms.recallVectorOnly(query, maxResults, opts, vecExpr, binds, filterSQL)
+		return nil, err
 	}
-	defer rows.Close()
 
-	type candidate struct {
-		result   MemoryRecallResult
-		rrf      float64
-		access   int
-		created  time.Time
-		accessed time.Time
+	// --- Channel B: lexical (tokenized INSTR, single-use binds) ---
+	lexRows := []lexHit{}
+	if opts.Lexical && ms.lexicalMode != "off" {
+		lexRows, err = ms.lexicalChannel(query, opts)
+		if err != nil {
+			logger.WarnCF("oracle", "Lexical channel failed, continuing with vector only", map[string]interface{}{"error": err.Error()})
+		}
 	}
-	var cands []candidate
+
+	// --- Fuse via RRF over rank positions ---
+	rrf := map[string]float64{}
+	for i, r := range vecRows {
+		rrf[r.MemoryID] += 1.0 / (60.0 + float64(i+1))
+	}
+	for i, r := range lexRows {
+		rrf[r.memoryID] += 1.0 / (60.0 + float64(i+1))
+	}
+
+	// --- Load details for lexical-only ids ---
+	known := map[string]bool{}
+	for _, r := range vecRows {
+		known[r.MemoryID] = true
+	}
+	var extraIDs []string
+	for _, r := range lexRows {
+		if !known[r.memoryID] {
+			extraIDs = append(extraIDs, r.memoryID)
+		}
+	}
+	details := map[string]MemoryRecallResult{}
+	for _, r := range vecRows {
+		details[r.MemoryID] = r.result
+	}
+	if len(extraIDs) > 0 {
+		extra, err := ms.detailsForIDs(extraIDs, opts)
+		if err == nil {
+			for id, res := range extra {
+				details[id] = res
+			}
+		}
+	}
+
+	// --- Decay score + filter + sort ---
+	results := make([]MemoryRecallResult, 0, len(rrf))
 	maxRRF := 0.0
-	for rows.Next() {
-		var c candidate
-		var content, category sql.NullString
-		var created, accessed sql.NullTime
-		if err := rows.Scan(&c.result.MemoryID, &content, &c.result.Importance, &category, &c.access, &created, &accessed, &c.rrf); err != nil {
+	for _, v := range rrf {
+		if v > maxRRF {
+			maxRRF = v
+		}
+	}
+	var memoryIDs []string
+	for id, v := range rrf {
+		res, ok := details[id]
+		if !ok {
 			continue
 		}
-		if content.Valid {
-			c.result.Text = content.String
-		}
-		if category.Valid {
-			c.result.Category = category.String
-		}
-		c.created = created.Time
-		c.accessed = accessed.Time
-		if c.rrf > maxRRF {
-			maxRRF = c.rrf
-		}
-		cands = append(cands, c)
-	}
-
-	results := make([]MemoryRecallResult, 0, len(cands))
-	var memoryIDs []string
-	for _, c := range cands {
-		c.result.Score = decayScore(c.rrf, maxRRF, c.result.Importance, c.access, c.created, c.accessed)
-		if c.result.Score >= opts.MinScore {
-			results = append(results, c.result)
-			memoryIDs = append(memoryIDs, c.result.MemoryID)
+		res.Score = decayScore(v, maxRRF, res.Importance, res.AccessCount, res.CreatedAt, res.AccessedAt)
+		if res.Score >= opts.MinScore {
+			results = append(results, res)
+			memoryIDs = append(memoryIDs, id)
 		}
 	}
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
 	if len(results) > maxResults {
 		results = results[:maxResults]
-		memoryIDs = memoryIDs[:maxResults]
 	}
-
 	if len(memoryIDs) > 0 {
-		ms.updateAccessTimestamps(memoryIDs)
+		ms.updateAccessTimestamps(memoryIDs[:len(results)])
 	}
 	return results, nil
+}
+
+// vecHit is a ranked vector-channel result with its details.
+type vecHit struct {
+	MemoryID string
+	result   MemoryRecallResult
+}
+
+// lexHit is a ranked lexical-channel hit (id + rank).
+type lexHit struct {
+	memoryID string
+}
+
+// vectorChannel runs the top-N vector similarity query (single-use binds).
+func (ms *MemoryStore) vectorChannel(query string, opts RecallOptions) ([]vecHit, error) {
+	limit := 100
+	args := []interface{}{ms.agentID}
+	filterSQL, args := appendRecallFilters(args, opts)
+	var rows *sql.Rows
+	var err error
+	if ms.modelName != "" && ms.embedding.Mode() == "onnx" {
+		sqlQuery := fmt.Sprintf(`
+			SELECT memory_id, content, importance, category, access_count, created_at, accessed_at,
+			       VECTOR_DISTANCE(embedding, VECTOR_EMBEDDING(%s USING :1 AS DATA), COSINE) AS dist
+			FROM PICO_MEMORIES
+			WHERE agent_id = :2 AND embedding IS NOT NULL%s
+			ORDER BY dist ASC
+			FETCH FIRST %d ROWS ONLY`, ms.modelName, filterSQL, limit)
+		rows, err = ms.db.Query(sqlQuery, append([]interface{}{query}, args...)...)
+	} else {
+		queryVec, embErr := ms.embedding.EmbedText(query)
+		if embErr != nil {
+			return nil, fmt.Errorf("failed to embed query: %w", embErr)
+		}
+		sqlQuery := `
+			SELECT memory_id, content, importance, category, access_count, created_at, accessed_at,
+			       VECTOR_DISTANCE(embedding, TO_VECTOR(:1), COSINE) AS dist
+			FROM PICO_MEMORIES
+			WHERE agent_id = :2 AND embedding IS NOT NULL` + filterSQL + `
+			ORDER BY dist ASC
+			FETCH FIRST ` + strconv.Itoa(limit) + ` ROWS ONLY`
+		rows, err = ms.db.Query(sqlQuery, append([]interface{}{float32SliceToString(queryVec)}, args...)...)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("recall vector query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var hits []vecHit
+	for rows.Next() {
+		var h vecHit
+		var content, category sql.NullString
+		var accessed sql.NullTime
+		var dist float64
+		if err := rows.Scan(&h.MemoryID, &content, &h.result.Importance, &category, &h.result.AccessCount, &h.result.CreatedAt, &accessed, &dist); err != nil {
+			continue
+		}
+		if content.Valid {
+			h.result.Text = content.String
+		}
+		if category.Valid {
+			h.result.Category = category.String
+		}
+		h.result.MemoryID = h.MemoryID
+		h.result.AccessedAt = accessed.Time
+		hits = append(hits, h)
+	}
+	return hits, nil
+}
+
+// appendRecallFilters appends category/recency filter SQL using fresh bind
+// numbers and returns the matching args (SQL text order == args order).
+func appendRecallFilters(args []interface{}, opts RecallOptions) (string, []interface{}) {
+	var sb strings.Builder
+	if opts.Category != "" {
+		sb.WriteString(" AND category = :" + strconv.Itoa(len(args)+1))
+		args = append(args, opts.Category)
+	}
+	if opts.Days > 0 {
+		sb.WriteString(" AND created_at >= SYSDATE - :" + strconv.Itoa(len(args)+1))
+		args = append(args, opts.Days)
+	}
+	return sb.String(), args
+}
+
+// lexicalChannel returns the top-N lexical matches by INSTR score
+// (single-use binds; ids only, scores computed in SQL).
+func (ms *MemoryStore) lexicalChannel(query string, opts RecallOptions) ([]lexHit, error) {
+	tokens := lexicalTokens(query)
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+	if len(tokens) > 6 {
+		tokens = tokens[:6]
+	}
+	args := []interface{}{ms.agentID}
+	filterSQL, args := appendRecallFilters(args, opts)
+	preds := make([]string, 0, len(tokens))
+	scores := make([]string, 0, len(tokens))
+	for _, tok := range tokens {
+		b := len(args) + 1
+		preds = append(preds, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d)) > 0", b))
+		scores = append(scores, fmt.Sprintf("INSTR(LOWER(content), LOWER(:%d))", b))
+		args = append(args, tok)
+	}
+	limit := 100
+	sqlQuery := fmt.Sprintf(`
+		SELECT memory_id, (%s) AS score
+		FROM PICO_MEMORIES
+		WHERE agent_id = :1%s AND (%s)
+		ORDER BY score DESC
+		FETCH FIRST %d ROWS ONLY`,
+		strings.Join(scores, " + "), filterSQL, strings.Join(preds, " OR "), limit)
+	rows, err := ms.db.Query(sqlQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hits []lexHit
+	for rows.Next() {
+		var id string
+		var score float64
+		if err := rows.Scan(&id, &score); err != nil {
+			continue
+		}
+		if score > 0 {
+			hits = append(hits, lexHit{memoryID: id})
+		}
+	}
+	return hits, nil
+}
+
+// detailsForIDs fetches full rows for lexical-only ids using an IN clause
+// (each bind used once).
+func (ms *MemoryStore) detailsForIDs(ids []string, opts RecallOptions) (map[string]MemoryRecallResult, error) {
+	out := map[string]MemoryRecallResult{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	if len(ids) > 100 {
+		ids = ids[:100]
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, 0, len(ids)+1)
+	args = append(args, ms.agentID)
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf(":%d", i+2)
+		args = append(args, id)
+	}
+	sqlQuery := fmt.Sprintf(`
+		SELECT memory_id, content, importance, category, access_count, created_at, accessed_at
+		FROM PICO_MEMORIES
+		WHERE agent_id = :1 AND memory_id IN (%s)`, strings.Join(placeholders, ", "))
+	rows, err := ms.db.Query(sqlQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r MemoryRecallResult
+		var content, category sql.NullString
+		var accessed sql.NullTime
+		if err := rows.Scan(&r.MemoryID, &content, &r.Importance, &category, &r.AccessCount, &r.CreatedAt, &accessed); err != nil {
+			continue
+		}
+		if content.Valid {
+			r.Text = content.String
+		}
+		if category.Valid {
+			r.Category = category.String
+		}
+		r.AccessedAt = accessed.Time
+		out[r.MemoryID] = r
+	}
+	return out, nil
 }
 
 // recallVectorOnly is the fallback when the fused query fails (e.g. older
