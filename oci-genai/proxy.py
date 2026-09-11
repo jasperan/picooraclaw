@@ -32,6 +32,10 @@ PROXY_PORT = int(os.getenv("OCI_PROXY_PORT", "9999"))
 # Bind to loopback by default so the proxy is not exposed on the network.
 # Set OCI_PROXY_HOST=0.0.0.0 to listen on all interfaces intentionally.
 PROXY_HOST = os.getenv("OCI_PROXY_HOST", "127.0.0.1")
+# Cross-origin access is opt-in. Unset means no Access-Control-Allow-Origin is sent, so a page the
+# user visits cannot read model responses from this proxy (or spend their OCI quota through it).
+# A browser client served from another origin can opt in with OCI_PROXY_ALLOW_ORIGIN.
+PROXY_ALLOW_ORIGIN = os.getenv("OCI_PROXY_ALLOW_ORIGIN", "")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -45,7 +49,9 @@ class OCIProxyHandler(BaseHTTPRequestHandler):
 
     # ── CORS ────────────────────────────────────────────────────
     def _cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if not PROXY_ALLOW_ORIGIN:
+            return
+        self.send_header("Access-Control-Allow-Origin", PROXY_ALLOW_ORIGIN)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers", "Content-Type, Authorization"
