@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,11 +63,39 @@ func NewChannel(cfg config.WebConfig, msgBus *bus.MessageBus) (*Channel, error) 
 
 func (c *Channel) Name() string { return "web" }
 
+// isLoopbackHost reports whether a configured bind host only exposes the local machine.
+// An empty host means "all interfaces" for net.Listen, so it is not loopback.
+func isLoopbackHost(host string) bool {
+	switch strings.ToLower(strings.TrimSpace(host)) {
+	case "localhost", "::1", "[::1]":
+		return true
+	}
+	if host == "" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
+}
+
 func (c *Channel) Broker() *EventBroker { return c.broker }
 
 func (c *Channel) Start(ctx context.Context) error {
 	if c.IsRunning() {
 		return errors.New("web channel already running")
+	}
+
+	// Fail closed on the dangerous combination: authMiddleware skips authentication entirely when
+	// cfg.Token is empty (server.go), and the library default is Host "0.0.0.0", so enabling this
+	// channel without a token would publish the agent UI to the whole network with no access
+	// control. Set channels.web.token, or bind a loopback host.
+	if c.cfg.Token == "" && !isLoopbackHost(c.cfg.Host) {
+		return fmt.Errorf(
+			"web channel refuses to listen on %q without a token: set channels.web.token "+
+				"(PICOCLAW_CHANNELS_WEB_TOKEN) or bind 127.0.0.1 - the web UI has no other access control",
+			c.cfg.Host,
+		)
 	}
 
 	mux := http.NewServeMux()
