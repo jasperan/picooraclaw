@@ -855,3 +855,12 @@ func TestRunWorkspaceOnly(t *testing.T) {
 		t.Errorf("SOUL.md content = %q", string(soulData))
 	}
 }
+
+// Confirm must never block an unattended caller. Under `go test` stdin is not
+// a terminal, so the prompt is skipped and the answer is "no" -- which is the
+// same outcome the previous fmt.Scanln produced on a piped stdin.
+func TestConfirmDeclinesWithoutTerminal(t *testing.T) {
+	if Confirm() {
+		t.Error("Confirm() = true without a terminal, want false")
+	}
+}

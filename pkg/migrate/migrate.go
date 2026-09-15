@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"charm.land/huh/v2"
+	"github.com/jasperan/picooraclaw/internal/huhstyle"
 	"github.com/jasperan/picooraclaw/pkg/config"
 )
 
@@ -232,11 +234,33 @@ func executeConfigMigration(srcConfigPath, dstConfigPath, picoClawHome string) e
 	return config.SaveConfig(dstConfigPath, incoming)
 }
 
+// Confirm asks whether to proceed with a migration.
+//
+// It declines without prompting when stdin is not a terminal, which matches
+// the previous fmt.Scanln behaviour (a piped stdin yields an empty answer).
+// --force is the supported way to migrate unattended.
 func Confirm() bool {
-	fmt.Print("Proceed with migration? (y/n): ")
-	var response string
-	fmt.Scanln(&response)
-	return strings.ToLower(strings.TrimSpace(response)) == "y"
+	if !huhstyle.Interactive() {
+		return false
+	}
+
+	var proceed bool
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Proceed with migration?").
+				Affirmative("Migrate").
+				Negative("Cancel").
+				Value(&proceed),
+		),
+	).
+		WithTheme(huh.ThemeFunc(huhstyle.Theme)).
+		WithAccessible(huhstyle.Accessible())
+
+	if err := form.Run(); err != nil {
+		return false
+	}
+	return proceed
 }
 
 func PrintPlan(actions []Action, warnings []string) {

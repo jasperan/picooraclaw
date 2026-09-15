@@ -219,35 +219,7 @@ func printHelp() {
 	fmt.Println("  version        Show version information")
 }
 
-func onboard() {
-	configPath := getConfigPath()
-
-	if _, err := os.Stat(configPath); err == nil {
-		fmt.Printf("Config already exists at %s\n", configPath)
-		fmt.Print("Overwrite? (y/n): ")
-		var response string
-		fmt.Scanln(&response)
-		if response != "y" {
-			fmt.Println("Aborted.")
-			return
-		}
-	}
-
-	cfg := config.DefaultConfig()
-	if err := config.SaveConfig(configPath, cfg); err != nil {
-		fmt.Printf("Error saving config: %v\n", err)
-		os.Exit(1)
-	}
-
-	workspace := cfg.WorkspacePath()
-	createWorkspaceTemplates(workspace)
-
-	fmt.Printf("%s picooraclaw is ready!\n", logo)
-	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Add your API key to", configPath)
-	fmt.Println("     Get one at: https://openrouter.ai/keys")
-	fmt.Println("  2. Chat: picooraclaw agent -m \"Hello!\"")
-}
+// onboard lives in onboard.go next to the huh setup wizard.
 
 func copyEmbeddedToTarget(targetDir string) error {
 	// Ensure target directory exists
