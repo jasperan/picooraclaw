@@ -205,6 +205,7 @@ func (p *PerplexitySearchProvider) Search(ctx context.Context, query string, cou
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("X-Pplx-Integration", "picooraclaw")
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
