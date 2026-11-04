@@ -8,21 +8,25 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* ========== RESET & BASE ========== */
+/* ========== BASE ========== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --electric: #0066ff;
-  --lime: #d4ff00;
-  --navy: #1a1a2e;
-  --navy-light: #22223a;
-  --navy-lighter: #2a2a44;
-  --white: #f0f0f5;
-  --muted: #8888aa;
-  --green: #34d399;
-  --cyan: #38bdf8;
-  --dot-size: 2px;
-  --dot-gap: 20px;
+  --bench-0: #100f0d;   /* deepest: header bars, code */
+  --bench-1: #161513;   /* page */
+  --bench-2: #1c1a18;   /* panel */
+  --bench-3: #232120;   /* raised */
+  --line: rgba(239, 233, 222, 0.09);
+  --line-2: rgba(239, 233, 222, 0.16);
+  --fg: #efe9de;
+  --fg-2: #aaa398;
+  --fg-3: #8a847a;
+  --accent: #c74634;
+  --ok: #4cc38a;
+  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --display: "Syne", var(--sans);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
@@ -37,18 +41,19 @@ html {
 }
 
 body {
-  font-family: 'Space Mono', monospace;
-  background: var(--navy);
-  color: var(--white);
+  font-family: var(--sans);
+  background: var(--bench-1);
+  color: var(--fg);
   overflow-x: hidden;
-  font-size: clamp(14px, 1.6vw, 18px);
+  font-size: 17px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ========== SLIDE BASE ========== */
+/* ========== SLIDE ========== */
 .slide {
-  height: 100vh;
-  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   scroll-snap-align: start;
   position: relative;
@@ -56,437 +61,572 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: clamp(20px, 4vw, 60px);
-  text-align: center;
+  padding: 64px;
 }
 
-/* ========== HALFTONE DOT PATTERN ========== */
-.slide::before {
-  content: '';
+.slide > .reveal {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+/* signature: the console's 3px status rule, on the content block */
+.slide > .reveal {
+  position: relative;
+  padding-left: 32px;
+}
+.slide > .reveal::before {
+  content: "";
   position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle, rgba(0, 102, 255, 0.08) var(--dot-size), transparent var(--dot-size));
-  background-size: var(--dot-gap) var(--dot-gap);
-  pointer-events: none;
-  z-index: 0;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(199, 70, 52, 0.45);
 }
 
-.slide > * { position: relative; z-index: 1; }
+.section-divider > .reveal::before { background: var(--accent); }
 
-/* ========== TYPOGRAPHY ========== */
-h1 {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: clamp(28px, 5vw, 72px);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+/* ========== TYPE ========== */
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
 }
 
-h2 {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(22px, 3.5vw, 52px);
-  line-height: 1.2;
+h1 { font-size: clamp(40px, 5.4vw, 76px); }
+h2 { font-size: clamp(30px, 3.6vw, 46px); }
+h3 { font-size: clamp(20px, 2vw, 26px); letter-spacing: 0; }
+
+p, li { font-size: 17px; line-height: 1.65; }
+
+code, .mono { font-family: var(--mono); }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+  margin-bottom: 16px;
 }
 
-h3 {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(18px, 2.5vw, 36px);
-  line-height: 1.3;
-}
-
-p, li {
-  font-size: clamp(13px, 1.5vw, 18px);
-  line-height: 1.6;
-}
+/* accents: one colour, used once per slide */
+.electric, .lime, .cyan, .green { color: var(--accent); }
 
 .subtitle {
-  font-size: clamp(14px, 1.8vw, 22px);
-  color: var(--muted);
-  margin-top: clamp(8px, 1vh, 16px);
+  font-size: 16px;
+  color: var(--fg-2);
+  margin-top: 12px;
+  max-width: 72ch;
 }
 
 .tagline {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(16px, 2.2vw, 30px);
-  color: var(--lime);
-  margin-top: clamp(12px, 2vh, 24px);
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(22px, 2.4vw, 32px);
+  line-height: 1.3;
+  color: var(--fg);
+  margin-top: 24px;
+  max-width: 20ch;
 }
-
-/* ========== ACCENT COLORS ========== */
-.electric { color: var(--electric); }
-.lime { color: var(--lime); }
-.cyan { color: var(--cyan); }
-.green { color: var(--green); }
 
 /* ========== SLIDE NUMBER ========== */
 .slide-number {
   position: absolute;
-  bottom: clamp(8px, 1.5vh, 16px);
-  right: clamp(12px, 2vw, 24px);
-  font-size: clamp(10px, 1vw, 14px);
-  color: var(--muted);
-  opacity: 0.5;
+  bottom: 24px;
+  right: 32px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ========== SECTION DIVIDER ========== */
-.section-divider {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-}
+.section-divider { background: var(--bench-0); }
 
 .section-divider .section-num {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: clamp(80px, 20vw, 300px);
-  color: var(--electric);
-  opacity: 0.15;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  line-height: 1;
+  position: static;
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin: 0 auto 20px;
+  width: 100%;
+  max-width: 1120px;
+  padding-left: 32px;
 }
 
 .section-divider h2 {
-  font-size: clamp(28px, 5vw, 64px);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: clamp(34px, 4.6vw, 60px);
+  text-transform: none;
+  letter-spacing: -0.02em;
 }
 
-.section-divider .section-bar {
-  width: clamp(60px, 10vw, 120px);
-  height: 4px;
-  background: var(--lime);
-  margin: clamp(12px, 2vh, 24px) auto 0;
-}
+.section-bar { display: none; }
 
-/* ========== STAT GRID ========== */
+/* ========== FIGURES (replaces stat cards) ========== */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: clamp(12px, 2vw, 24px);
-  margin-top: clamp(16px, 3vh, 32px);
+  gap: 0 48px;
+  margin-top: 40px;
   width: 100%;
   max-width: 900px;
 }
 
 .stat-card {
-  background: var(--navy-lighter);
-  border: 1px solid rgba(0, 102, 255, 0.3);
-  border-radius: 12px;
-  padding: clamp(12px, 2vw, 24px);
-  text-align: center;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 20px 0 24px;
+  text-align: left;
 }
 
 .stat-card .number {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: clamp(24px, 3.5vw, 48px);
-  color: var(--lime);
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(30px, 3.2vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
 }
+
+.stat-card:first-child .number { color: var(--accent); }
 
 .stat-card .label {
-  font-size: clamp(11px, 1.2vw, 15px);
-  color: var(--muted);
-  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fg-3);
+  margin-top: 6px;
 }
 
-/* ========== CARD GRID ========== */
+/* ========== INDEX LISTS (replaces card grids) ========== */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(120px, 15vw, 180px), 1fr));
-  gap: clamp(8px, 1.2vw, 16px);
-  margin-top: clamp(12px, 2vh, 24px);
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 0 40px;
+  margin-top: 32px;
   width: 100%;
   max-width: 1000px;
 }
 
 .card {
-  background: var(--navy-lighter);
-  border: 1px solid rgba(0, 102, 255, 0.2);
-  border-radius: 10px;
-  padding: clamp(10px, 1.5vw, 20px);
-  text-align: center;
-  transition: border-color 0.3s, transform 0.3s;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px 0 14px;
+  text-align: left;
+  transition: border-color 0.16s var(--ease);
 }
 
-.card:hover {
-  border-color: var(--lime);
-  transform: translateY(-2px);
-}
-
-.card .card-icon {
-  font-size: clamp(20px, 3vw, 36px);
-  margin-bottom: clamp(4px, 0.8vh, 8px);
-}
+.card:hover { border-color: var(--line-2); }
 
 .card .card-title {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(12px, 1.4vw, 17px);
-  color: var(--white);
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--fg);
+  letter-spacing: 0.01em;
 }
 
 .card .card-desc {
-  font-size: clamp(10px, 1vw, 13px);
-  color: var(--muted);
-  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fg-3);
+  margin-top: 2px;
 }
 
-/* ========== CODE BLOCK ========== */
+/* ========== CODE ========== */
 .code-block {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(0, 102, 255, 0.2);
-  border-radius: 10px;
-  padding: clamp(12px, 2vw, 24px);
+  background: var(--bench-0);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px 24px;
   text-align: left;
-  font-family: 'Space Mono', monospace;
-  font-size: clamp(11px, 1.2vw, 15px);
-  line-height: 1.7;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.8;
   max-width: 900px;
   width: 100%;
-  margin-top: clamp(12px, 2vh, 20px);
-  overflow: hidden;
+  margin-top: 24px;
+  overflow-x: auto;
+  color: var(--fg-2);
 }
 
-.code-block .keyword { color: var(--electric); }
-.code-block .type { color: var(--lime); }
-.code-block .string { color: var(--green); }
-.code-block .comment { color: var(--muted); }
-.code-block .func { color: var(--cyan); }
+.code-block .keyword { color: var(--accent); }
+.code-block .type { color: var(--fg); }
+.code-block .string { color: var(--fg-2); }
+.code-block .comment { color: var(--fg-3); }
+.code-block .func { color: var(--fg); }
 
 /* ========== FEATURE LIST ========== */
 .feature-list {
   list-style: none;
   text-align: left;
-  max-width: 800px;
-  margin-top: clamp(12px, 2vh, 24px);
+  max-width: 860px;
+  margin-top: 32px;
 }
 
 .feature-list li {
-  padding: clamp(6px, 1vh, 12px) 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: clamp(13px, 1.4vw, 17px);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
+  color: var(--fg-2);
 }
 
-.feature-list li::before {
-  content: '\25B8';
-  color: var(--lime);
-  margin-right: 10px;
+.feature-list li:last-child { border-bottom: 0; }
+
+.feature-list strong {
+  font-weight: 500;
+  color: var(--fg);
 }
 
 /* ========== TWO COLUMNS ========== */
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(16px, 3vw, 40px);
+  gap: 0 64px;
   width: 100%;
   max-width: 1000px;
-  margin-top: clamp(12px, 2vh, 24px);
+  margin-top: 32px;
   text-align: left;
 }
 
 .two-col .col-title {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(14px, 1.6vw, 20px);
-  color: var(--lime);
-  margin-bottom: clamp(6px, 1vh, 12px);
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+  text-transform: none;
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-2);
 }
 
-/* ========== BADGE ========== */
+.two-col .feature-list { margin-top: 0; }
+
+/* ========== TAGS (replaces pills) ========== */
 .badge {
-  display: inline-block;
-  background: var(--electric);
-  color: var(--white);
-  font-family: 'Space Mono', monospace;
-  font-size: clamp(10px, 1vw, 13px);
-  padding: 3px 10px;
-  border-radius: 20px;
-  margin: 3px;
+  display: inline;
+  background: none;
+  color: var(--fg-2);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 0;
+  border-radius: 0;
+  margin: 0;
 }
 
-.badge.lime { background: var(--lime); color: var(--navy); }
-.badge.cyan { background: var(--cyan); color: var(--navy); }
+.badge + .badge::before {
+  content: " / ";
+  color: var(--fg-3);
+}
+
+.badge.lime, .badge.cyan { background: none; color: var(--fg-2); }
 
 /* ========== TABLE ========== */
 .schema-table {
   width: 100%;
   max-width: 900px;
   border-collapse: collapse;
-  margin-top: clamp(12px, 2vh, 20px);
-  font-size: clamp(11px, 1.2vw, 14px);
+  margin-top: 32px;
+  font-size: 14px;
 }
 
 .schema-table th {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  background: var(--electric);
-  color: var(--white);
-  padding: clamp(6px, 1vh, 12px) clamp(8px, 1vw, 16px);
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  background: none;
+  color: var(--fg-3);
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--line-2);
   text-align: left;
 }
 
 .schema-table td {
-  padding: clamp(5px, 0.8vh, 10px) clamp(8px, 1vw, 16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 11px 16px 11px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
 }
 
-.schema-table tr:nth-child(even) { background: rgba(0, 102, 255, 0.05); }
+.schema-table td:first-child {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg);
+  white-space: nowrap;
+}
 
-/* ========== FLOW DIAGRAM ========== */
+.schema-table tr:last-child td { border-bottom: 0; }
+.schema-table tr:nth-child(even) { background: none; }
+
+/* ========== FLOW ========== */
 .flow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(6px, 1vw, 16px);
-  margin-top: clamp(16px, 3vh, 32px);
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: end;
+  justify-content: start;
+  gap: 16px;
+  margin-top: 40px;
+  max-width: 900px;
 }
 
 .flow-box {
-  background: var(--navy-lighter);
-  border: 2px solid var(--electric);
-  border-radius: 10px;
-  padding: clamp(10px, 1.5vw, 20px) clamp(14px, 2vw, 28px);
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: clamp(12px, 1.3vw, 16px);
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 14px 0 0;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 15px;
+  text-align: left;
+  color: var(--fg);
+  line-height: 1.4;
 }
 
 .flow-arrow {
-  font-size: clamp(16px, 2vw, 28px);
-  color: var(--lime);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--fg-3);
+  padding-bottom: 2px;
 }
 
 /* ========== CTA ========== */
 .cta-box {
-  background: linear-gradient(135deg, var(--electric), #0044cc);
-  border-radius: 14px;
-  padding: clamp(16px, 3vw, 40px);
+  background: var(--bench-0);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
   max-width: 700px;
-  margin-top: clamp(16px, 3vh, 32px);
+  margin-top: 32px;
 }
 
 .cta-box code {
   display: block;
-  background: rgba(0, 0, 0, 0.3);
-  padding: clamp(8px, 1.2vw, 14px);
-  border-radius: 8px;
-  margin-top: clamp(8px, 1vh, 12px);
-  font-size: clamp(12px, 1.3vw, 16px);
+  background: none;
+  padding: 6px 0;
+  border-radius: 0;
+  margin: 0;
+  font-size: 14px;
+  color: var(--fg-2);
   word-break: break-all;
 }
 
-/* ========== PROGRESS BAR ========== */
-#progress-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--electric), var(--lime));
-  z-index: 1000;
-  transition: width 0.3s;
-  width: 0%;
+.cta-box p { color: var(--fg-2); margin-bottom: 12px; font-size: 15px; }
+
+/* ========== PRODUCT PREVIEW ========== */
+.console {
+  width: 100%;
+  background: var(--bench-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  font-family: var(--sans);
+  text-align: left;
+}
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bench-0);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--fg-3);
+}
+.console-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.console-bar .name { color: var(--fg); font-family: var(--mono); font-size: 12px; }
+.console-bar .right { margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; }
+.console-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.console-body .line {
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--fg-2);
+}
+.console-body .line.user {
+  align-self: flex-end;
+  max-width: 82%;
+  background: var(--bench-3);
+  border-color: var(--line-2);
+  color: var(--fg);
+}
+.console-body .line.agent { max-width: 96%; color: var(--fg); }
+.console-body .tool-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--ok);
+  font: 11px/1.6 var(--mono);
+  color: var(--fg-3);
+}
+.console-body .tool-row .ok { color: var(--ok); font-size: 10px; letter-spacing: 0.06em; }
+.console-body .tool-row .tname { color: var(--fg); }
+.console-input {
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--fg-3);
+}
+.console-input .caret {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  background: var(--fg-2);
+  margin-left: 2px;
+  vertical-align: -2px;
+}
+
+/* ========== TITLE LAYOUT ========== */
+.title-slide > .reveal {
+  display: grid;
+  grid-template-columns: 1.02fr 0.98fr;
+  gap: 64px;
+  align-items: center;
+}
+.title-slide .title-copy { min-width: 0; }
+.title-slide .title-preview { min-width: 0; }
+
+/* ========== SMALL PARTS ========== */
+.brand-b { color: var(--accent); }
+.meta-line { margin-top: 32px; font-size: 12px; }
+.narrow { max-width: 760px; }
+.tag-row { margin-top: 24px; }
+.stat-card .number.word { font-size: clamp(20px, 2vw, 28px); letter-spacing: 0; }
+.flow-box .step {
+  display: block;
+  font: 11px/1.6 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--fg-3);
+  margin: 0 0 6px;
+}
+.flow-box span { display: inline; }
+.sisters { margin-top: 40px; }
+.sisters p { color: var(--fg-3); font-size: 13px; margin-bottom: 12px; }
+.colophon {
+  margin-top: 48px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
 }
 
 /* ========== NAV DOTS ========== */
 #nav-dots {
   position: fixed;
-  right: clamp(8px, 1.5vw, 20px);
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   z-index: 1000;
 }
 
 .nav-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.3;
+  background: var(--fg-3);
+  opacity: 0.35;
   cursor: pointer;
-  transition: opacity 0.3s, background 0.3s, transform 0.3s;
+  transition: opacity 0.16s var(--ease), background-color 0.16s var(--ease);
   border: none;
   padding: 0;
 }
 
-.nav-dot.active {
-  opacity: 1;
-  background: var(--lime);
-  transform: scale(1.4);
-}
-
+.nav-dot.active { opacity: 1; background: var(--accent); }
 .nav-dot:hover { opacity: 0.7; }
 
-/* ========== REVEAL ANIMATION ========== */
+/* ========== REVEAL ========== */
 .reveal {
   opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  transform: translateY(8px);
+  transition: opacity 0.24s var(--ease), transform 0.24s var(--ease);
 }
 
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+.reveal.visible { opacity: 1; transform: translateY(0); }
 
-/* ========== RESPONSIVE HEIGHT ========== */
-@media (max-height: 700px) {
-  .slide { padding: clamp(12px, 2vw, 30px); }
-  h1 { font-size: clamp(24px, 4.5vw, 56px); }
-  h2 { font-size: clamp(20px, 3vw, 40px); }
-  .stat-grid { gap: clamp(8px, 1.5vw, 16px); }
-  .card-grid { gap: clamp(6px, 1vw, 10px); }
+/* ========== RESPONSIVE ========== */
+@media (max-height: 760px) {
+  .slide { padding: 40px 56px; }
+  h2 { font-size: clamp(26px, 3vw, 38px); }
+  .card { padding: 9px 0 10px; }
+  .card .card-title { font-size: 13px; }
+  .code-block { padding: 16px 20px; padding-top: 16px; font-size: 11.5px; line-height: 1.7; }
+  .stat-grid { margin-top: 24px; }
+  .stat-card { padding: 14px 0 16px; }
+  .feature-list li { padding: 9px 0; font-size: 15px; }
+  .card-grid { margin-top: 20px; }
 }
 
 @media (max-height: 600px) {
-  .slide { padding: clamp(8px, 1.5vw, 20px); }
-  h1 { font-size: clamp(20px, 4vw, 44px); }
-  h2 { font-size: clamp(18px, 2.5vw, 34px); }
-  .stat-card .number { font-size: clamp(18px, 3vw, 36px); }
-  .feature-list li { padding: clamp(3px, 0.6vh, 6px) 0; }
-  .code-block { padding: clamp(8px, 1.5vw, 16px); font-size: clamp(10px, 1.1vw, 13px); }
+  .slide { padding: 28px 48px; }
+  h1 { font-size: clamp(30px, 4vw, 48px); }
+  h2 { font-size: clamp(22px, 2.6vw, 30px); }
+  .subtitle, p, li { font-size: 14px; }
+  .tagline { font-size: 18px; margin-top: 12px; }
+  .stat-card .number { font-size: clamp(22px, 2.4vw, 30px); }
+  .card { padding: 7px 0 8px; }
+  .card .card-desc { font-size: 12px; }
+  .console-body { gap: 6px; padding: 12px; }
+  .console-body .line { font-size: 11.5px; padding: 6px 8px; }
 }
 
-@media (max-height: 500px) {
-  .slide { padding: clamp(6px, 1vw, 14px); }
-  h1 { font-size: clamp(18px, 3.5vw, 36px); }
-  h2 { font-size: clamp(16px, 2.2vw, 28px); }
-  .tagline { font-size: clamp(12px, 1.6vw, 20px); }
-  .subtitle { font-size: clamp(11px, 1.3vw, 16px); }
-  .stat-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(4px, 1vw, 8px); }
-  .card { padding: clamp(6px, 1vw, 12px); }
-}
-
-@media (max-width: 600px) {
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .two-col { grid-template-columns: 1fr; }
-  .card-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 900px) {
+  .slide { padding: 40px 24px; }
+  .slide > .reveal { padding-left: 20px; }
+  .section-divider .section-num { padding-left: 20px; }
+  .title-slide > .reveal { grid-template-columns: 1fr; gap: 32px; }
+  .title-slide .title-preview { display: none; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 0 24px; }
+  .two-col { grid-template-columns: 1fr; gap: 0; }
+  .flow { grid-template-columns: 1fr; gap: 8px; }
+  .flow-arrow { display: none; }
   #nav-dots { display: none; }
+  .slide-number { right: 24px; bottom: 16px; }
 }
+
 </style>
 </head>
 <body>
 
-<div id="progress-bar"></div>
 <nav id="nav-dots"></nav>
 
 <!-- ==================== SLIDE 1: TITLE ==================== -->
-<section class="slide" data-title="Title">
+<section class="slide title-slide" data-title="Title">
   <div class="reveal">
-    <h1><span class="electric">Pico</span><span class="lime">Ora</span>Claw</h1>
-    <p class="tagline">Ultra-lightweight. ~10MB. Oracle-powered.</p>
-    <p class="subtitle">Oracle AI Database-powered AI assistant. Pure Go. Embedded Linux ready.</p>
-    <div style="margin-top: clamp(16px, 3vh, 32px);">
-      <span class="badge">Go</span>
-      <span class="badge lime">~10MB RAM</span>
-      <span class="badge cyan">MIT / Apache-2.0</span>
+    <div class="title-copy">
+      <p class="eyebrow">Go agent &middot; Oracle AI Database</p>
+      <h1><span class="brand-b">Pico</span>OraClaw</h1>
+      <p class="tagline">A 10 MB Go agent whose memory lives in your own Oracle AI Database.</p>
+      <p class="subtitle">Runs on a board or in a terminal, with a single-file web console on the gateway. Nothing leaves the database.</p>
+      <p class="meta-line"><span class="badge">Go</span><span class="badge">~10 MB</span><span class="badge">MIT OR Apache-2.0</span></p>
+    </div>
+    <div class="title-preview">
+      <div class="console">
+        <div class="console-bar"><span class="dot"></span><span class="name">PicoOraClaw</span><span class="right">gateway</span></div>
+        <div class="console-body">
+          <div class="line user">What is the bench sensor reading?</div>
+          <div class="line agent">Bus 3, 0x76: 22.4 &deg;C and 41% humidity. Inside the 18&ndash;24 &deg;C band you set yesterday.</div>
+          <div class="tool-row"><span class="ok">OK</span><span class="tname">i2c_read</span><span>bus 3 &middot; 0x76 &middot; 0xFA</span></div>
+          <div class="tool-row"><span class="ok">OK</span><span class="tname">recall</span><span>"bench range" &rarr; 0.94</span></div>
+        </div>
+        <div class="console-input">Message the agent<span class="caret"></span></div>
+      </div>
     </div>
   </div>
   <span class="slide-number">1</span>
@@ -496,7 +636,7 @@ p, li {
 <section class="slide" data-title="The Pitch">
   <div class="reveal">
     <h2>By the Numbers</h2>
-    <p class="subtitle">Everything you need, nothing you don't</p>
+    <p class="subtitle">Counted in the repository: Go sources, packages, binary size, tools, channels, providers.</p>
     <div class="stat-grid">
       <div class="stat-card">
         <div class="number">27K</div>
@@ -530,13 +670,13 @@ p, li {
 <!-- ==================== SLIDE 3: WHY ORACLE ==================== -->
 <section class="slide" data-title="Why Oracle">
   <div class="reveal">
-    <h2>Why <span class="lime">Oracle AI Database</span>?</h2>
+    <h2>Why <span>Oracle AI Database</span>?</h2>
     <ul class="feature-list">
-      <li><strong class="electric">In-database ONNX embeddings</strong> : vector generation without external services</li>
-      <li><strong class="electric">AI Vector Search</strong> : native COSINE similarity on 384-dim vectors</li>
-      <li><strong class="electric">ACID transactions</strong> : real durability for agent memory and state</li>
-      <li><strong class="electric">Multi-agent isolation</strong> : session/workspace separation at the DB level</li>
-      <li><strong class="electric">Graceful fallback</strong> : no Oracle? Falls back to local file-based storage</li>
+      <li><strong>In-database ONNX embeddings</strong> : vector generation without external services</li>
+      <li><strong>AI Vector Search</strong> : native COSINE similarity on 384-dim vectors</li>
+      <li><strong>ACID transactions</strong> : real durability for agent memory and state</li>
+      <li><strong>Multi-agent isolation</strong> : session/workspace separation at the DB level</li>
+      <li><strong>Graceful fallback</strong> : no Oracle? Falls back to local file-based storage</li>
     </ul>
   </div>
   <span class="slide-number">3</span>
@@ -545,7 +685,7 @@ p, li {
 <!-- ==================== SLIDE 4: ARCHITECTURE ==================== -->
 <section class="slide" data-title="Architecture">
   <div class="reveal">
-    <h2>23 Packages in <span class="electric">pkg/</span></h2>
+    <h2>23 Packages in <span>pkg/</span></h2>
     <div class="card-grid">
       <div class="card"><div class="card-title">agent</div><div class="card-desc">Core loop</div></div>
       <div class="card"><div class="card-title">providers</div><div class="card-desc">LLM backends</div></div>
@@ -574,7 +714,6 @@ p, li {
   <span class="section-num">01</span>
   <div class="reveal">
     <h2>Agent Core</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">5</span>
 </section>
@@ -584,15 +723,15 @@ p, li {
   <div class="reveal">
     <h2>The Agent Loop</h2>
     <div class="flow">
-      <div class="flow-box"><span class="lime">Context</span><br>Builder</div>
+      <div class="flow-box"><span class="step">01</span>Context builder</div>
       <span class="flow-arrow">&rarr;</span>
-      <div class="flow-box"><span class="electric">LLM</span><br>Call</div>
+      <div class="flow-box"><span class="step">02</span>LLM call</div>
       <span class="flow-arrow">&rarr;</span>
-      <div class="flow-box"><span class="cyan">Tool</span><br>Execution</div>
+      <div class="flow-box"><span class="step">03</span>Tool execution</div>
       <span class="flow-arrow">&rarr;</span>
-      <div class="flow-box"><span class="green">Response</span><br>Dispatch</div>
+      <div class="flow-box"><span class="step">04</span>Response dispatch</div>
     </div>
-    <div class="code-block" style="margin-top: clamp(16px, 2vh, 24px);">
+    <div class="code-block">
       <span class="comment">// Managed by session, state, and memory managers</span><br>
       <span class="keyword">for</span> {<br>
       &nbsp;&nbsp;ctx := <span class="func">buildContext</span>(session, memory, skills)<br>
@@ -615,7 +754,6 @@ p, li {
   <span class="section-num">02</span>
   <div class="reveal">
     <h2>Channels</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">7</span>
 </section>
@@ -623,18 +761,18 @@ p, li {
 <!-- ==================== SLIDE 8: 10 CHANNELS ==================== -->
 <section class="slide" data-title="10 Channels">
   <div class="reveal">
-    <h2>10 Input <span class="lime">Channels</span></h2>
+    <h2>10 Input <span>Channels</span></h2>
     <div class="card-grid">
-      <div class="card"><div class="card-icon">&#9993;</div><div class="card-title">Telegram</div></div>
-      <div class="card"><div class="card-icon">&#128172;</div><div class="card-title">Discord</div></div>
-      <div class="card"><div class="card-icon">&#9889;</div><div class="card-title">Slack</div></div>
-      <div class="card"><div class="card-icon">&#128276;</div><div class="card-title">DingTalk</div></div>
-      <div class="card"><div class="card-icon">&#128154;</div><div class="card-title">LINE</div></div>
-      <div class="card"><div class="card-icon">&#128228;</div><div class="card-title">Feishu</div></div>
-      <div class="card"><div class="card-icon">&#128039;</div><div class="card-title">QQ</div></div>
-      <div class="card"><div class="card-icon">&#128241;</div><div class="card-title">WhatsApp</div></div>
-      <div class="card" style="border-color: var(--lime);"><div class="card-icon">&#128247;</div><div class="card-title lime">MaixCAM</div><div class="card-desc">Vision camera!</div></div>
-      <div class="card"><div class="card-icon">&#129302;</div><div class="card-title">OneBot</div></div>
+      <div class="card"><div class="card-title">Telegram</div></div>
+      <div class="card"><div class="card-title">Discord</div></div>
+      <div class="card"><div class="card-title">Slack</div></div>
+      <div class="card"><div class="card-title">DingTalk</div></div>
+      <div class="card"><div class="card-title">LINE</div></div>
+      <div class="card"><div class="card-title">Feishu</div></div>
+      <div class="card"><div class="card-title">QQ</div></div>
+      <div class="card"><div class="card-title">WhatsApp</div></div>
+      <div class="card"><div class="card-title">MaixCAM</div><div class="card-desc">Camera input on device</div></div>
+      <div class="card"><div class="card-title">OneBot</div></div>
     </div>
   </div>
   <span class="slide-number">8</span>
@@ -645,7 +783,6 @@ p, li {
   <span class="section-num">03</span>
   <div class="reveal">
     <h2>Tools</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">9</span>
 </section>
@@ -653,15 +790,15 @@ p, li {
 <!-- ==================== SLIDE 10: 15 TOOLS ==================== -->
 <section class="slide" data-title="15 Tools">
   <div class="reveal">
-    <h2>15 Built-in <span class="electric">Tools</span></h2>
+    <h2>15 Built-in <span>Tools</span></h2>
     <div class="card-grid">
-      <div class="card"><div class="card-title lime">Remember</div><div class="card-desc">Oracle-backed</div></div>
-      <div class="card"><div class="card-title lime">Recall</div><div class="card-desc">Vector search</div></div>
+      <div class="card"><div class="card-title">Remember</div><div class="card-desc">Oracle-backed</div></div>
+      <div class="card"><div class="card-title">Recall</div><div class="card-desc">Vector search</div></div>
       <div class="card"><div class="card-title">Shell</div><div class="card-desc">Command exec</div></div>
       <div class="card"><div class="card-title">Edit</div><div class="card-desc">File editing</div></div>
       <div class="card"><div class="card-title">Filesystem</div><div class="card-desc">Read/write</div></div>
-      <div class="card" style="border-color: var(--lime);"><div class="card-title lime">I2C</div><div class="card-desc">Hardware!</div></div>
-      <div class="card" style="border-color: var(--lime);"><div class="card-title lime">SPI</div><div class="card-desc">Hardware!</div></div>
+      <div class="card"><div class="card-title">I2C</div><div class="card-desc">Sensor and peripheral bus</div></div>
+      <div class="card"><div class="card-title">SPI</div><div class="card-desc">Sensor and peripheral bus</div></div>
       <div class="card"><div class="card-title">Cron</div><div class="card-desc">Scheduling</div></div>
       <div class="card"><div class="card-title">Message</div><div class="card-desc">Cross-channel</div></div>
       <div class="card"><div class="card-title">Spawn</div><div class="card-desc">Subagent</div></div>
@@ -675,8 +812,8 @@ p, li {
 <!-- ==================== SLIDE 11: HARDWARE TOOLS ==================== -->
 <section class="slide" data-title="Hardware Tools">
   <div class="reveal">
-    <h2><span class="lime">Hardware</span> Tools</h2>
-    <p class="subtitle">Unique to PicoOraClaw: direct sensor and peripheral access</p>
+    <h2><span>Hardware</span> Tools</h2>
+    <p class="subtitle">Direct sensor and peripheral access from the agent loop.</p>
     <div class="two-col">
       <div>
         <div class="col-title">I2C Bus</div>
@@ -697,9 +834,7 @@ p, li {
         </ul>
       </div>
     </div>
-    <p style="margin-top: clamp(12px, 2vh, 20px); font-size: clamp(12px, 1.3vw, 16px);">
-      <span class="lime">An AI that can read thermometers and drive servos.</span> No external daemon. Pure Go.
-    </p>
+    <p class="subtitle">An agent that can read thermometers and drive servos. No external daemon, no CGO.</p>
   </div>
   <span class="slide-number">11</span>
 </section>
@@ -709,7 +844,6 @@ p, li {
   <span class="section-num">04</span>
   <div class="reveal">
     <h2>LLM Providers</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">12</span>
 </section>
@@ -717,41 +851,35 @@ p, li {
 <!-- ==================== SLIDE 13: 6 BACKENDS ==================== -->
 <section class="slide" data-title="6 Backends">
   <div class="reveal">
-    <h2>6 LLM <span class="cyan">Backends</span></h2>
-    <div class="card-grid" style="max-width: 750px;">
-      <div class="card" style="border-color: var(--lime);">
-        <div class="card-icon">&#11088;</div>
-        <div class="card-title lime">Ollama</div>
+    <h2>6 LLM <span>Backends</span></h2>
+    <div class="card-grid narrow">
+      <div class="card">
+        <div class="card-title">Ollama</div>
         <div class="card-desc">Recommended. Local.</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#127760;</div>
         <div class="card-title">OpenRouter</div>
         <div class="card-desc">Multi-model proxy</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#9651;</div>
         <div class="card-title">Anthropic</div>
         <div class="card-desc">Claude models</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#9679;</div>
         <div class="card-title">OpenAI</div>
         <div class="card-desc">GPT models</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#128300;</div>
         <div class="card-title">Zhipu GLM</div>
         <div class="card-desc">Chinese LLM</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#9729;</div>
         <div class="card-title">OCI GenAI</div>
         <div class="card-desc">Oracle Cloud proxy</div>
       </div>
     </div>
-    <p class="subtitle" style="margin-top: clamp(12px, 2vh, 20px);">
-      All providers share the same <span class="electric">LLMProvider</span> interface. Swap with one env var.
+    <p class="subtitle">
+      All providers share the same <span>LLMProvider</span> interface. Swap with one env var.
     </p>
   </div>
   <span class="slide-number">13</span>
@@ -762,7 +890,6 @@ p, li {
   <span class="section-num">05</span>
   <div class="reveal">
     <h2>Oracle Integration</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">14</span>
 </section>
@@ -770,17 +897,17 @@ p, li {
 <!-- ==================== SLIDE 15: ORACLE SCHEMA ==================== -->
 <section class="slide" data-title="Oracle Schema">
   <div class="reveal">
-    <h2>8 Oracle <span class="lime">Tables</span></h2>
+    <h2>8 Oracle <span>Tables</span></h2>
     <table class="schema-table">
       <tr><th>Table</th><th>Purpose</th></tr>
-      <tr><td><span class="lime">PICO_MEMORIES</span></td><td>Vector-searchable memory store (384-dim embeddings)</td></tr>
-      <tr><td><span class="lime">PICO_SESSIONS</span></td><td>Conversation session tracking &amp; metadata</td></tr>
-      <tr><td><span class="lime">PICO_TRANSCRIPTS</span></td><td>Full message history per session</td></tr>
-      <tr><td><span class="lime">PICO_STATE</span></td><td>Key-value agent state persistence</td></tr>
-      <tr><td><span class="lime">PICO_DAILY_NOTES</span></td><td>Structured daily journal entries</td></tr>
-      <tr><td><span class="lime">PICO_PROMPTS</span></td><td>System prompt templates &amp; versions</td></tr>
-      <tr><td><span class="lime">PICO_CONFIG</span></td><td>Runtime configuration overrides</td></tr>
-      <tr><td><span class="lime">PICO_META</span></td><td>Schema version &amp; migration tracking</td></tr>
+      <tr><td><span>PICO_MEMORIES</span></td><td>Vector-searchable memory store (384-dim embeddings)</td></tr>
+      <tr><td><span>PICO_SESSIONS</span></td><td>Conversation session tracking &amp; metadata</td></tr>
+      <tr><td><span>PICO_TRANSCRIPTS</span></td><td>Full message history per session</td></tr>
+      <tr><td><span>PICO_STATE</span></td><td>Key-value agent state persistence</td></tr>
+      <tr><td><span>PICO_DAILY_NOTES</span></td><td>Structured daily journal entries</td></tr>
+      <tr><td><span>PICO_PROMPTS</span></td><td>System prompt templates &amp; versions</td></tr>
+      <tr><td><span>PICO_CONFIG</span></td><td>Runtime configuration overrides</td></tr>
+      <tr><td><span>PICO_META</span></td><td>Schema version &amp; migration tracking</td></tr>
     </table>
   </div>
   <span class="slide-number">15</span>
@@ -789,7 +916,7 @@ p, li {
 <!-- ==================== SLIDE 16: VECTOR SEARCH ==================== -->
 <section class="slide" data-title="Vector Search">
   <div class="reveal">
-    <h2>AI <span class="electric">Vector Search</span></h2>
+    <h2>AI <span>Vector Search</span></h2>
     <div class="code-block">
       <span class="comment">-- 384-dimensional ALL_MINILM_L12_V2 model</span><br>
       <span class="comment">-- Loaded via in-database ONNX runtime</span><br><br>
@@ -813,7 +940,6 @@ p, li {
   <span class="section-num">06</span>
   <div class="reveal">
     <h2>Skills &amp; Security</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">17</span>
 </section>
@@ -821,7 +947,7 @@ p, li {
 <!-- ==================== SLIDE 18: SKILLS SYSTEM ==================== -->
 <section class="slide" data-title="Skills">
   <div class="reveal">
-    <h2>SKILL.md <span class="lime">Extensions</span></h2>
+    <h2>SKILL.md <span>Extensions</span></h2>
     <div class="two-col">
       <div>
         <div class="col-title">Trusted Skills</div>
@@ -842,7 +968,7 @@ p, li {
         </ul>
       </div>
     </div>
-    <div style="margin-top: clamp(12px, 2vh, 20px);">
+    <div class="tag-row">
       <span class="badge">skill_list</span>
       <span class="badge">skill_search</span>
       <span class="badge">skill_install</span>
@@ -857,7 +983,6 @@ p, li {
   <span class="section-num">07</span>
   <div class="reveal">
     <h2>Deployment</h2>
-    <div class="section-bar"></div>
   </div>
   <span class="slide-number">19</span>
 </section>
@@ -865,22 +990,22 @@ p, li {
 <!-- ==================== SLIDE 20: EMBEDDED TARGETS ==================== -->
 <section class="slide" data-title="Embedded Targets">
   <div class="reveal">
-    <h2>Embedded <span class="electric">Targets</span></h2>
-    <div class="stat-grid" style="max-width: 700px;">
+    <h2>Embedded <span>Targets</span></h2>
+    <div class="stat-grid narrow">
       <div class="stat-card">
-        <div class="number" style="font-size: clamp(18px, 2.5vw, 32px);">RISC-V</div>
+        <div class="number word">RISC-V</div>
         <div class="label">linux/riscv64</div>
       </div>
       <div class="stat-card">
-        <div class="number" style="font-size: clamp(18px, 2.5vw, 32px);">ARM64</div>
+        <div class="number word">ARM64</div>
         <div class="label">linux/arm64</div>
       </div>
       <div class="stat-card">
-        <div class="number" style="font-size: clamp(18px, 2.5vw, 32px);">x86_64</div>
+        <div class="number word">x86_64</div>
         <div class="label">linux/amd64</div>
       </div>
     </div>
-    <div class="code-block" style="max-width: 700px;">
+    <div class="code-block narrow">
       <span class="comment"># Cross-compile for RISC-V</span><br>
       <span class="keyword">GOOS</span>=linux <span class="keyword">GOARCH</span>=riscv64 \<br>
       &nbsp;&nbsp;<span class="func">go build</span> -ldflags <span class="string">"-s -w"</span> -o picooraclaw<br><br>
@@ -895,30 +1020,26 @@ p, li {
 <!-- ==================== SLIDE 21: DEPLOYMENT OPTIONS ==================== -->
 <section class="slide" data-title="Deployment Options">
   <div class="reveal">
-    <h2>Deploy <span class="lime">Anywhere</span></h2>
-    <div class="card-grid" style="max-width: 800px;">
+    <h2>Four Ways to Run It</h2>
+    <div class="card-grid narrow">
       <div class="card">
-        <div class="card-icon">&#128230;</div>
         <div class="card-title">Docker</div>
         <div class="card-desc">Multi-stage build, scratch base</div>
       </div>
-      <div class="card" style="border-color: var(--lime);">
-        <div class="card-icon">&#9729;</div>
-        <div class="card-title lime">OCI One-Click</div>
+      <div class="card">
+        <div class="card-title">OCI One-Click</div>
         <div class="card-desc">ARM A1.Flex always-free tier</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#9881;</div>
         <div class="card-title">systemd</div>
         <div class="card-desc">Service unit, auto-restart</div>
       </div>
       <div class="card">
-        <div class="card-icon">&#128296;</div>
         <div class="card-title">make install</div>
         <div class="card-desc">Direct binary install</div>
       </div>
     </div>
-    <div class="code-block" style="max-width: 700px; margin-top: clamp(12px, 2vh, 20px);">
+    <div class="code-block narrow">
       <span class="comment"># OCI Always-Free: 4 ARM cores, 24GB RAM</span><br>
       <span class="keyword">make</span> <span class="func">deploy-oci</span><br><br>
       <span class="comment"># Or just run it</span><br>
@@ -931,7 +1052,7 @@ p, li {
 <!-- ==================== SLIDE 22: CORE INTERFACES ==================== -->
 <section class="slide" data-title="Core Interfaces">
   <div class="reveal">
-    <h2>Interface-Driven <span class="electric">Architecture</span></h2>
+    <h2>Interface-Driven <span>Architecture</span></h2>
     <div class="code-block">
       <span class="keyword">type</span> <span class="type">Tool</span> <span class="keyword">interface</span> {<br>
       &nbsp;&nbsp;<span class="func">Name</span>() <span class="type">string</span><br>
@@ -954,14 +1075,14 @@ p, li {
 <!-- ==================== SLIDE 23: WHAT MAKES IT UNIQUE ==================== -->
 <section class="slide" data-title="Unique">
   <div class="reveal">
-    <h2>What Makes It <span class="lime">Unique</span></h2>
-    <ul class="feature-list" style="max-width: 850px;">
-      <li><strong class="lime">Hardware I2C/SPI tools</strong> : the AI reads sensors, drives motors, talks to peripherals</li>
-      <li><strong class="lime">MaixCAM vision channel</strong> : camera input as a first-class conversation channel</li>
-      <li><strong class="lime">Workspace embedding</strong> : <code>go:embed</code> bakes default configs into the binary</li>
-      <li><strong class="lime">Oracle graceful fallback</strong> : Oracle DB when available, local files when not</li>
-      <li><strong class="lime">Pure Go Oracle driver</strong> : go-ora v2.9.0, no CGO, no InstantClient dependency</li>
-      <li><strong class="lime">~10MB footprint</strong> : runs on devices where Python can't even install</li>
+    <h2>What This Build Adds</h2>
+    <ul class="feature-list">
+      <li><strong>Hardware I2C/SPI tools</strong> : the AI reads sensors, drives motors, talks to peripherals</li>
+      <li><strong>MaixCAM vision channel</strong> : camera input as a first-class conversation channel</li>
+      <li><strong>Workspace embedding</strong> : <code>go:embed</code> bakes default configs into the binary</li>
+      <li><strong>Oracle graceful fallback</strong> : Oracle DB when available, local files when not</li>
+      <li><strong>Pure Go Oracle driver</strong> : go-ora v2.9.0, no CGO, no InstantClient dependency</li>
+      <li><strong>~10MB footprint</strong> : runs on devices where Python can't even install</li>
     </ul>
   </div>
   <span class="slide-number">23</span>
@@ -970,22 +1091,22 @@ p, li {
 <!-- ==================== SLIDE 24: CLOSING ==================== -->
 <section class="slide" data-title="Get Started">
   <div class="reveal">
-    <h1><span class="electric">Get</span> <span class="lime">Started</span></h1>
+    <h1>Get started</h1>
     <div class="cta-box">
-      <p style="font-size: clamp(14px, 1.6vw, 20px); margin-bottom: clamp(8px, 1vh, 12px);">Clone, build, run. That's it.</p>
+      <p>Clone, build, run.</p>
       <code>git clone https://github.com/jasperan/picooraclaw.git</code>
       <code>cd picooraclaw && make build</code>
       <code>./picooraclaw</code>
     </div>
-    <div style="margin-top: clamp(16px, 3vh, 32px);">
+    <div class="sisters">
       <p class="subtitle">Sister projects</p>
-      <div style="margin-top: clamp(8px, 1vh, 12px);">
+      <div>
         <span class="badge">IronOraClaw</span>
         <span class="badge lime">PicoOraClaw</span>
         <span class="badge cyan">ZeroOraClaw</span>
       </div>
     </div>
-    <p style="margin-top: clamp(16px, 2vh, 24px); font-size: clamp(11px, 1.2vw, 14px); color: var(--muted);">
+    <p class="colophon">
       MIT OR Apache-2.0 &middot; Pure Go &middot; go-ora v2.9.0 &middot; Oracle AI Database
     </p>
   </div>
@@ -1005,8 +1126,14 @@ class SlidePresentation {
     this.setupIntersectionObserver();
     this.setupKeyboardNav();
     this.setupTouchNav();
-    this.setupWheelNav();
-    this.updateProgressBar();
+    this.setSlideNumbers();
+  }
+
+  setSlideNumbers() {
+    this.slides.forEach((slide, i) => {
+      const el = slide.querySelector('.slide-number');
+      if (el) el.textContent = String(i + 1).padStart(2, '0') + ' / ' + this.slides.length;
+    });
   }
 
   createNavDots() {
@@ -1029,12 +1156,11 @@ class SlidePresentation {
           const index = Array.from(this.slides).indexOf(entry.target);
           this.currentSlide = index;
           this.updateNavDots();
-          this.updateProgressBar();
 
           // Trigger reveal animations
           const reveals = entry.target.querySelectorAll('.reveal');
           reveals.forEach((el, i) => {
-            setTimeout(() => el.classList.add('visible'), i * 150);
+            setTimeout(() => el.classList.add('visible'), i * 60);
           });
         } else {
           // Reset reveals when leaving
@@ -1096,21 +1222,6 @@ class SlidePresentation {
     }, { passive: true });
   }
 
-  setupWheelNav() {
-    let lastWheel = 0;
-    document.addEventListener('wheel', (e) => {
-      const now = Date.now();
-      if (now - lastWheel < 800) return;
-      lastWheel = now;
-
-      if (e.deltaY > 0) {
-        this.nextSlide();
-      } else if (e.deltaY < 0) {
-        this.prevSlide();
-      }
-    }, { passive: true });
-  }
-
   nextSlide() {
     if (this.currentSlide < this.slides.length - 1) {
       this.goToSlide(this.currentSlide + 1);
@@ -1124,21 +1235,15 @@ class SlidePresentation {
   }
 
   goToSlide(index) {
-    this.slides[index].scrollIntoView({ behavior: 'smooth' });
+    this.slides[index].scrollIntoView({ block: 'start' });
     this.currentSlide = index;
     this.updateNavDots();
-    this.updateProgressBar();
   }
 
   updateNavDots() {
     this.dots.forEach((dot, i) => {
       dot.classList.toggle('active', i === this.currentSlide);
     });
-  }
-
-  updateProgressBar() {
-    const progress = ((this.currentSlide + 1) / this.slides.length) * 100;
-    document.getElementById('progress-bar').style.width = `${progress}%`;
   }
 }
 
