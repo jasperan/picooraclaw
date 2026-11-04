@@ -6,80 +6,256 @@
 <title>PicoOraClaw</title>
 <style>
   :root{
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
-    --fg:#e6edf3; --dim:#8b949e; --accent:#f80000; --ok:#3fb950; --warn:#d29922;
-    --err:#f85149; --chip:#21262d;
+    --s0:#12110f;            /* header, footer */
+    --s1:#161513;            /* page */
+    --s2:#1c1a18;            /* panel */
+    --s3:#232120;            /* input, raised row */
+    --line:rgba(239,233,222,.08);
+    --line-2:rgba(239,233,222,.14);
+    --fg:#efe9de;
+    --fg2:#aaa398;
+    --fg3:#8a847a;
+    --accent:#c74634;
+    --ok:#4cc38a;
+    --err:#e5484d;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI",Roboto,monospace}
-  header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
-  header h1{font-size:15px;margin:0;letter-spacing:.5px}
-  header h1 b{color:var(--accent)}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--s1);color:var(--fg);
+    font:14px/1.55 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font:inherit;color:inherit}
+  h1,h2{margin:0;font-weight:500}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky;top:0;z-index:5;
+    display:flex;align-items:center;gap:24px;
+    height:56px;padding:0 24px;
+    background:var(--s0);border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;font-size:14px}
+  .brand .word{letter-spacing:0}
+  .brand .word b{font-weight:600}
+  .brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);align-self:center}
+  .brand .state{font:11px/1 var(--mono);color:var(--fg3);letter-spacing:.04em}
+  body.streaming .brand .dot{background:var(--ok)}
   nav{display:flex;gap:4px;margin-left:auto}
-  nav button{background:none;border:1px solid transparent;color:var(--dim);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit}
-  nav button.active{color:var(--fg);border-color:var(--border);background:var(--panel2)}
+  nav button{
+    background:none;border:0;border-radius:8px;
+    padding:6px 12px;height:32px;cursor:pointer;
+    color:var(--fg3);font-size:13px;
+    transition:color .12s ease-out,background-color .12s ease-out;
+  }
   nav button:hover{color:var(--fg)}
-  main{padding:16px;max-width:900px;margin:0 auto}
+  nav button.active{color:var(--fg);background:var(--s3);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  nav button:focus-visible{outline:2px solid var(--line-2);outline-offset:2px}
+
+  /* ---------- page ---------- */
+  main{max-width:880px;margin:0 auto;padding:24px 24px 48px}
   .tab{display:none}
   .tab.active{display:block}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
-  .card h2{margin:0 0 10px;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
-  input[type=text],select{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--fg);padding:9px 12px;border-radius:8px;font:inherit}
-  input:focus,select:focus{outline:none;border-color:var(--accent)}
-  button.primary{background:var(--accent);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600}
-  button.primary:disabled{opacity:.5;cursor:not-allowed}
-  button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border);padding:6px 10px;border-radius:6px;cursor:pointer;font:inherit}
-  .chat{display:flex;flex-direction:column;gap:10px;min-height:380px;max-height:55vh;overflow-y:auto;padding:4px}
-  .msg{max-width:85%;padding:9px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word}
-  .msg.user{align-self:flex-end;background:#1f3d5c;border-bottom-right-radius:2px}
-  .msg.assistant{align-self:flex-start;background:var(--panel2);border-bottom-left-radius:2px}
-  .msg.system{align-self:center;background:transparent;color:var(--dim);font-size:12px}
-  .toolchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-  .toolchip{font-size:11px;background:var(--chip);border:1px solid var(--border);border-radius:20px;padding:2px 9px;color:var(--dim)}
-  .toolchip.ok{color:var(--ok);border-color:#2ea04366}
-  .toolchip.err{color:var(--err);border-color:#f8514966}
-  details.args{margin-top:4px}
-  details.args summary{font-size:11px;color:var(--dim);cursor:pointer}
-  details.args pre{font-size:11px;background:#0a0e14;padding:8px;border-radius:6px;overflow-x:auto;color:var(--dim)}
-  .row{display:flex;gap:10px}
-  .row input{flex:1}
-  .typing{color:var(--dim);font-style:italic;font-size:12px;padding:4px}
-  .mem{display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--border);padding:10px 2px}
-  .mem:last-child{border-bottom:none}
-  .mem .score{min-width:64px;text-align:right;font-size:12px;color:var(--dim)}
-  .mem .bar{height:4px;background:var(--accent);border-radius:2px;margin-top:3px}
-  .mem .txt{flex:1}
-  .mem .meta{font-size:11px;color:var(--dim);margin-top:2px}
-  .sess{display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--border)}
-  .sess:last-child{border-bottom:none}
-  .sess .title{flex:1;cursor:pointer}
-  .sess .title:hover{color:var(--accent)}
-  .sess .when{font-size:11px;color:var(--dim)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-  .stat{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px}
-  .stat .k{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
-  .stat .v{font-size:22px;font-weight:700;margin-top:4px}
-  .stat .v small{font-size:12px;color:var(--dim);font-weight:400}
-  #tokenPrompt{position:fixed;inset:0;background:rgba(13,17,23,.92);display:none;align-items:center;justify-content:center;z-index:20}
-  #tokenPrompt .box{width:min(420px,90vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px}
-  #tokenPrompt h2{margin:0 0 8px;font-size:15px}
-  #tokenPrompt p{color:var(--dim);font-size:12px;margin:0 0 12px}
-  .errline{color:var(--err);font-size:12px;margin-top:6px}
-  code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
-  footer{color:var(--dim);font-size:11px;text-align:center;padding:14px}
+
+  /* signature: 3px status rule on the left edge of every panel */
+  .panel{
+    position:relative;background:var(--s2);
+    border:1px solid var(--line);border-left:0;
+    border-radius:12px;padding:20px;
+    margin-bottom:24px;
+  }
+  .panel::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:rgba(199,70,52,.55);
+    border-radius:12px 0 0 12px;
+    transition:background-color .2s ease-out;
+  }
+  body.streaming .panel::before{background:var(--ok)}
+  .panel h2{font-size:13px;color:var(--fg2);margin:0 0 16px}
+  .panel:last-child{margin-bottom:0}
+
+  label{display:block;font-size:12px;color:var(--fg3);margin-bottom:8px}
+  code{font:12px/1.5 var(--mono);background:var(--s3);padding:1px 5px;border-radius:4px;color:var(--fg2)}
+
+  input[type=text],input[type=password],select{
+    width:100%;background:var(--s3);
+    border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;color:var(--fg);
+    transition:border-color .12s ease-out;
+  }
+  input::placeholder{color:var(--fg3)}
+  input:focus,select:focus{outline:none;border-color:var(--line-2);box-shadow:0 0 0 3px rgba(239,233,222,.05)}
+  select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg3) 50%),linear-gradient(135deg,var(--fg3) 50%,transparent 50%);background-position:calc(100% - 15px) 50%,calc(100% - 11px) 50%;background-size:4px 4px;background-repeat:no-repeat;padding-right:32px}
+
+  button.primary{
+    height:36px;padding:0 18px;flex:none;
+    background:var(--accent);color:#fff;border:0;border-radius:8px;
+    font-weight:500;cursor:pointer;
+    transition:background-color .12s ease-out;
+  }
+  button.primary:hover{background:#b03d2c}
+  button.primary:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{
+    height:36px;padding:0 12px;flex:none;white-space:nowrap;
+    background:var(--s3);color:var(--fg);
+    border:1px solid var(--line);border-radius:8px;
+    display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+    transition:border-color .12s ease-out;
+  }
+  button.ghost:hover{border-color:var(--line-2)}
+  button.icon{
+    width:28px;height:28px;padding:0;flex:none;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:none;border:1px solid transparent;border-radius:6px;
+    color:var(--fg3);cursor:pointer;
+    transition:color .12s ease-out,border-color .12s ease-out;
+  }
+  button.icon:hover{color:var(--err);border-color:var(--line)}
+  button:focus-visible{outline:2px solid var(--line-2);outline-offset:2px}
+  svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+  .row{display:flex;gap:8px;align-items:center}
+  .row input{flex:1;min-width:0}
+  .row select{flex:1;min-width:0}
+
+  /* ---------- chat ---------- */
+  .toolbar{display:flex;gap:8px;margin-bottom:16px}
+  .feed-wrap{position:relative;padding-left:16px}
+  .feed-wrap::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px;
+    background:rgba(199,70,52,.55);
+    transition:background-color .2s ease-out;
+  }
+  body.streaming .feed-wrap::before{background:var(--ok)}
+  .chat{
+    display:flex;flex-direction:column;gap:12px;
+    min-height:340px;max-height:58vh;overflow-y:auto;
+    padding:0 4px 0 0;
+  }
+  .chat:empty::after{
+    content:"No messages yet";
+    display:block;color:var(--fg3);font-size:13px;padding:8px 0;
+  }
+  .chat:empty{min-height:120px}
+  .msg{max-width:78%;padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word}
+  .msg.user{align-self:flex-end;background:var(--s3);color:var(--fg);border:1px solid var(--line)}
+  .msg.assistant{align-self:flex-start;background:transparent;border:1px solid var(--line);padding:10px 12px}
+  .msg.system{align-self:flex-start;color:var(--fg3);font-size:12px;padding:0 2px}
+  .msg.system .err{color:var(--err)}
+
+  .tool{
+    align-self:flex-start;width:100%;max-width:560px;
+    border-left:2px solid var(--ok);
+    padding:2px 0 2px 12px;
+    font:12px/1.5 var(--mono);
+  }
+  .tool.fail{border-left-color:var(--err)}
+  .tool .name{display:flex;align-items:center;gap:6px;color:var(--fg)}
+  .tool .name .status{font-size:10px;letter-spacing:.04em;color:var(--ok)}
+  .tool.fail .name .status{color:var(--err)}
+  .tool details{margin-top:4px}
+  .tool summary{color:var(--fg3);cursor:pointer;font-size:11px}
+  .tool pre{
+    margin:6px 0 0;padding:10px;border-radius:8px;
+    background:var(--s0);border:1px solid var(--line);
+    color:var(--fg2);font:11px/1.6 var(--mono);
+    overflow-x:auto;white-space:pre-wrap;word-break:break-word;
+  }
+  .typing{display:none;color:var(--fg3);font:11px/1 var(--mono);letter-spacing:.04em;padding:8px 0 0}
+  .typing.on{display:block}
+  .composer{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+
+  /* ---------- memory ---------- */
+  .mem{display:flex;gap:16px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .mem:last-child{border-bottom:0;padding-bottom:0}
+  .mem .score{
+    width:48px;flex:none;text-align:right;
+    font:13px/1.4 var(--mono);font-variant-numeric:tabular-nums;color:var(--fg2);
+  }
+  .mem .score .track{height:2px;background:var(--line);margin-top:6px;border-radius:1px}
+  .mem .score .fill{height:2px;background:var(--fg3);border-radius:1px}
+  .mem:first-child .score{color:var(--fg)}
+  .mem:first-child .score .fill{background:var(--accent)}
+  .mem .txt{flex:1;min-width:0}
+  .mem .meta{font:11px/1.6 var(--mono);color:var(--fg3);margin-top:4px;font-variant-numeric:tabular-nums}
+
+  /* ---------- sessions ---------- */
+  .sess{display:flex;align-items:center;gap:12px;padding:8px 10px;margin:0 -10px;border-radius:8px}
+  .sess + .sess{margin-top:4px}
+  .sess:hover{background:var(--s3)}
+  .sess .title{flex:1;min-width:0;cursor:pointer;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sess .when{font:11px/1 var(--mono);color:var(--fg3);font-variant-numeric:tabular-nums}
+  .sess.current .title{color:var(--accent)}
+  .sess .icon{opacity:0}
+
+  /* ---------- dashboard ---------- */
+  .lede{display:flex;align-items:baseline;gap:12px;margin-bottom:24px}
+  .lede .fig{font:500 40px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .lede .fig-label{font-size:13px;color:var(--fg3)}
+  .dash-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start}
+  .dash-grid .panel{margin-bottom:0}
+  table.readout{width:100%;border-collapse:collapse;font-size:13px}
+  table.readout th{
+    text-align:left;font-weight:400;font-size:11px;color:var(--fg3);
+    padding:0 0 8px;border-bottom:1px solid var(--line);
+  }
+  table.readout th.num,table.readout td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  table.readout td{padding:8px 0;border-bottom:1px solid var(--line);color:var(--fg2)}
+  table.readout td:first-child{font:12px/1.6 var(--mono);letter-spacing:.01em}
+  table.readout tr:last-child td{border-bottom:0;padding-bottom:0}
+  table.readout td.num{color:var(--fg)}
+  .index-note{font:12px/1.7 var(--mono);color:var(--fg2);margin:0}
+  .index-note span{color:var(--fg3)}
+  .index-list{list-style:none;margin:12px 0 0;padding:0;font:12px/1.9 var(--mono);color:var(--fg2)}
+  .index-list li{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:4px;margin-top:4px}
+  .index-list li:first-child{border-top:0;margin-top:0;padding-top:0}
+  .index-list .ok{color:var(--ok)}
+
+  .empty{color:var(--fg3);font-size:13px;padding:4px 0}
+
+  /* ---------- token gate ---------- */
+  #tokenPrompt{
+    position:fixed;inset:0;z-index:20;display:none;
+    align-items:center;justify-content:center;
+    background:var(--s1);padding:24px;
+  }
+  #tokenPrompt .box{width:min(400px,100%);background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:24px}
+  #tokenPrompt h2{font-size:16px;margin-bottom:8px}
+  #tokenPrompt p{color:var(--fg3);font-size:12px;line-height:1.6;margin:0 0 16px}
+  #tokenPrompt .row{margin-top:12px}
+  .errline{color:var(--err);font-size:12px;min-height:18px;margin-top:8px}
+
+  footer{color:var(--fg3);font-size:11px;text-align:center;padding:0 24px 32px;max-width:880px;margin:0 auto}
+
+  @media (max-width:720px){
+    header{padding:0 16px;gap:12px}
+    main{padding:16px 16px 32px}
+    .dash-grid{grid-template-columns:1fr}
+    .msg{max-width:88%}
+  }
 </style>
 </head>
 <body>
 <div id="tokenPrompt"><div class="box">
-  <h2>🔑 Authentication token required</h2>
-  <p>This gateway requires a bearer token. Paste the token from <code>channels.web.token</code> in <code>~/.picooraclaw/config.json</code>.</p>
-  <div class="row"><input id="tokInput" type="text" placeholder="token…" autocomplete="off">
-  <button class="primary" onclick="saveToken()">Connect</button></div>
-  <div id="tokErr" class="errline"></div>
+  <h2>Gateway token</h2>
+  <p>Paste the bearer token from <code>channels.web.token</code> in <code>~/.picooraclaw/config.json</code>.</p>
+  <form id="tokForm" autocomplete="off">
+    <label for="tokInput">Token</label>
+    <input id="tokInput" type="password" placeholder="paste token" autocomplete="off">
+    <div class="row"><button class="primary" type="submit">Connect</button></div>
+    <div id="tokErr" class="errline"></div>
+  </form>
 </div></div>
 
 <header>
-  <h1><b>Pico</b>OraClaw</h1>
+  <div class="brand">
+    <span class="word"><b>Pico</b>OraClaw</span>
+    <span class="dot"></span>
+    <span class="state" id="linkState">idle</span>
+  </div>
   <nav>
     <button data-tab="chat" class="active">Chat</button>
     <button data-tab="mem">Memory</button>
@@ -91,57 +267,86 @@
 <main>
   <!-- CHAT -->
   <section id="tab-chat" class="tab active">
-    <div class="card">
-      <h2>Conversation</h2>
-      <div class="row" style="margin-bottom:10px">
-        <select id="sessionPicker"><option value="">…loading sessions…</option></select>
-        <button class="ghost" onclick="newSession()">＋ new</button>
-      </div>
+    <div class="toolbar">
+      <select id="sessionPicker" aria-label="Session"><option value="">No session</option></select>
+      <button class="ghost" id="newSessionBtn">New session</button>
+    </div>
+    <div class="feed-wrap">
       <div class="chat" id="chatBox"></div>
-      <div class="typing" id="typing" style="display:none">…thinking</div>
-      <div class="row" style="margin-top:10px">
-        <input id="chatInput" type="text" placeholder="Message the agent… (Enter to send)" autocomplete="off">
-        <button class="primary" id="sendBtn" onclick="send()">Send</button>
-      </div>
+      <div class="typing" id="typing">thinking</div>
+    </div>
+    <div class="composer">
+      <input id="chatInput" type="text" placeholder="Message the agent" autocomplete="off" aria-label="Message">
+      <button class="primary" id="sendBtn">Send</button>
     </div>
   </section>
 
   <!-- MEMORY -->
   <section id="tab-mem" class="tab">
-    <div class="card">
-      <h2>Semantic memory search</h2>
+    <div class="panel">
+      <h2>Memory search</h2>
       <div class="row">
-        <input id="memQuery" type="text" placeholder="e.g. what does the user like to program in">
-        <button class="primary" onclick="searchMem()">Search</button>
+        <input id="memQuery" type="text" placeholder="Search memory" aria-label="Search memory">
+        <button class="primary" id="memSearchBtn">Search</button>
       </div>
-      <div id="memResults" style="margin-top:8px"></div>
+      <div id="memResults" style="margin-top:16px"><div class="empty">Results come from the vector index in PICO_MEMORIES.</div></div>
     </div>
   </section>
 
   <!-- SESSIONS -->
   <section id="tab-sess" class="tab">
-    <div class="card">
+    <div class="panel">
       <h2>Sessions</h2>
-      <div class="row" style="margin-bottom:8px">
-        <input id="newSessTitle" type="text" placeholder="New session title…">
-        <button class="primary" onclick="createSession()">Create</button>
+      <div class="row" style="margin-bottom:16px">
+        <input id="newSessTitle" type="text" placeholder="Session title" aria-label="Session title">
+        <button class="primary" id="createSessBtn">Create</button>
       </div>
-      <div id="sessList"></div>
+      <div id="sessList"><div class="empty">No sessions yet.</div></div>
     </div>
   </section>
 
   <!-- DASHBOARD -->
   <section id="tab-dash" class="tab">
-    <div class="card"><h2>Oracle AI Database overview</h2><div id="dashStats" class="grid"></div></div>
+    <div class="lede">
+      <div class="fig" id="dashLead">0</div>
+      <div class="fig-label" id="dashLeadLabel">Rows in Oracle</div>
+    </div>
+    <div class="dash-grid">
+      <div class="panel">
+        <h2>Tables</h2>
+        <table class="readout">
+          <thead><tr><th>Table</th><th class="num">Rows</th></tr></thead>
+          <tbody id="dashStats"></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Index</h2>
+        <p class="index-note">PICO_MEMORIES<br><span>384-dim · COSINE</span></p>
+        <ul class="index-list">
+          <li><span>model</span><span>ALL_MINILM_L12_V2</span></li>
+          <li><span>runtime</span><span>ONNX in-database</span></li>
+          <li><span>workspace filter</span><span>on</span></li>
+          <li><span>recall threshold</span><span>0.30</span></li>
+        </ul>
+      </div>
+    </div>
   </section>
 </main>
-<footer>PicoOraClaw · single-file UI · all data stays in your Oracle AI Database</footer>
+<footer>Single-file console · data stays in your Oracle AI Database</footer>
 
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 let TOKEN = localStorage.getItem("pico_token") || "";
 let CURRENT = "";
+
+const ICON = {
+  key:'<svg viewBox="0 0 16 16"><circle cx="5.5" cy="10.5" r="2.5"/><path d="M7.3 8.7 13 3M11 5l2 2"/></svg>',
+  warn:'<svg viewBox="0 0 16 16"><path d="M8 2.5 14 13H2L8 2.5Z"/><path d="M8 6.5v3M8 11.2v.3"/></svg>',
+  plus:'<svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>',
+  trash:'<svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5"/></svg>',
+  search:'<svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4"/><path d="m10.2 10.2 3 3"/></svg>'
+};
 
 function authHeaders(){
   const h = {"Content-Type":"application/json"};
@@ -158,69 +363,88 @@ async function api(path, opts){
 }
 
 /* ---------- auth ---------- */
-function showTokenPrompt(){ $("tokenPrompt").style.display = "flex"; }
-function saveToken(){
+function showTokenPrompt(){ $("tokenPrompt").style.display = "flex"; $("tokInput").focus(); }
+$("tokForm").addEventListener("submit", e => {
+  e.preventDefault();
   const t = $("tokInput").value.trim();
-  if (!t) return;
+  if (!t) { $("tokErr").textContent = "Enter a token."; return; }
   TOKEN = t; localStorage.setItem("pico_token", t);
   $("tokenPrompt").style.display = "none";
+  $("tokErr").textContent = "";
   refreshAll();
-}
+});
 if (!TOKEN) showTokenPrompt();
 
 /* ---------- tabs ---------- */
-document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+const TABS = document.querySelectorAll("nav button");
+TABS.forEach(b => b.addEventListener("click", () => {
+  TABS.forEach(x => x.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
   $("tab-" + b.dataset.tab).classList.add("active");
   if (b.dataset.tab === "dash") loadDash();
-  if (b.dataset.tab === "mem") loadDashMem();
   if (b.dataset.tab === "sess") loadSessions();
 }));
 
 /* ---------- chat ---------- */
 let es = null, esCursor = 0;
-function renderMsg(role, text){
+function atBottom(){ $("chatBox").scrollTop = $("chatBox").scrollHeight; }
+
+function renderMsg(role, text, failed){
   if (!text) return;
   const d = document.createElement("div");
   d.className = "msg " + role;
-  d.textContent = text;
+  if (failed && role === "system") {
+    d.innerHTML = ICON.warn.replace("<svg", '<svg class="err"');
+    d.style.display = "flex"; d.style.gap = "6px"; d.style.alignItems = "center";
+  }
+  d.appendChild(document.createTextNode(text));
   $("chatBox").appendChild(d);
-  $("chatBox").scrollTop = $("chatBox").scrollHeight;
+  atBottom();
 }
 function renderTool(name, ok, args, result){
-  const chip = document.createElement("span");
-  chip.className = "toolchip " + (ok ? "ok" : "err");
-  chip.textContent = (ok ? "✓ " : "✗ ") + name;
+  const row = document.createElement("div");
+  row.className = "tool" + (ok ? "" : " fail");
+  const head = document.createElement("div");
+  head.className = "name";
+  const status = document.createElement("span");
+  status.className = "status";
+  status.textContent = ok ? "OK" : "ERR";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  head.appendChild(status); head.appendChild(nm);
   const det = document.createElement("details");
-  det.className = "args";
-  det.innerHTML = "<summary>args / result</summary>";
+  const sum = document.createElement("summary");
+  sum.textContent = "args / result";
   const pre = document.createElement("pre");
-  let txt = "args: " + JSON.stringify(args||{}).slice(0,400);
-  if (result) txt += "\n\nresult: " + result.slice(0,400);
+  let txt = "args " + JSON.stringify(args||{}).slice(0,400);
+  if (result) txt += "\n\nresult " + result.slice(0,400);
   pre.textContent = txt;
-  det.appendChild(pre);
-  const wrap = document.createElement("div");
-  wrap.appendChild(chip); wrap.appendChild(det);
-  $("chatBox").appendChild(wrap);
-  $("chatBox").scrollTop = $("chatBox").scrollHeight;
+  det.appendChild(sum); det.appendChild(pre);
+  row.appendChild(head); row.appendChild(det);
+  $("chatBox").appendChild(row);
+  atBottom();
+}
+function setStreaming(on){
+  document.body.classList.toggle("streaming", on);
+  $("linkState").textContent = on ? "streaming" : "idle";
 }
 function openStream(){
   if (es) es.close();
+  setStreaming(false);
   es = new EventSource("/v1/events?session_id=" + encodeURIComponent(CURRENT) + "&from=" + esCursor);
   es.onmessage = ev => {
     let e;
     try { e = JSON.parse(ev.data); } catch { return; }
     esCursor = Date.now();
-    $("typing").style.display = "none";
-    if (e.type === "message_start") $("typing").style.display = "block";
-    if (e.type === "message_end"){ $("typing").style.display = "none"; renderMsg("assistant", e.text||""); }
-    if (e.type === "tool_call_start") $("typing").style.display = "block";
-    if (e.type === "tool_call_end"){ renderTool(e.tool||"tool", e.ok !== false, e.args, e.result); }
-    if (e.type === "error"){ $("typing").style.display = "none"; renderMsg("system", "⚠ " + (e.error||"error")); }
+    $("typing").classList.remove("on");
+    if (e.type === "message_start"){ $("typing").classList.add("on"); setStreaming(true); }
+    if (e.type === "message_end"){ $("typing").classList.remove("on"); setStreaming(false); renderMsg("assistant", e.text||""); }
+    if (e.type === "tool_call_start"){ $("typing").classList.add("on"); setStreaming(true); }
+    if (e.type === "tool_call_end"){ $("typing").classList.remove("on"); setStreaming(false); renderTool(e.tool||"tool", e.ok !== false, e.args, e.result); }
+    if (e.type === "error"){ $("typing").classList.remove("on"); setStreaming(false); renderMsg("system", e.error||"gateway error", true); }
   };
-  es.onerror = () => { /* EventSource auto-reconnects with cursor resume */ };
+  es.onerror = () => { /* EventSource reconnects with the cursor */ };
 }
 async function send(){
   const text = $("chatInput").value.trim();
@@ -229,15 +453,32 @@ async function send(){
   renderMsg("user", text);
   try {
     await api("/v1/chat", {method:"POST", body: JSON.stringify({session_id:CURRENT, text})});
-  } catch(e){ renderMsg("system", "⚠ send failed: " + e.message); }
+  } catch(e){ renderMsg("system", "Send failed: " + e.message, true); }
 }
 $("chatInput").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+$("sendBtn").addEventListener("click", send);
+$("newSessionBtn").addEventListener("click", () => createSession(true));
+$("createSessBtn").addEventListener("click", () => createSession(false));
+$("memSearchBtn").addEventListener("click", searchMem);
+$("newSessTitle").addEventListener("keydown", e => { if (e.key === "Enter") createSession(false); });
+
+function shortTitle(){
+  const d = new Date();
+  const date = d.toLocaleDateString("en-GB", {day:"numeric", month:"short"});
+  const time = d.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
+  return "Session " + date + " " + time;
+}
 
 async function loadSessions(){
   try {
     const list = await api("/v1/sessions");
     const sel = $("sessionPicker");
     sel.innerHTML = "";
+    if (!list || !list.length){
+      const o = document.createElement("option");
+      o.value = ""; o.textContent = "No session";
+      sel.appendChild(o);
+    }
     (list||[]).forEach(s => {
       const o = document.createElement("option");
       o.value = s.id; o.textContent = s.title || s.id;
@@ -245,7 +486,7 @@ async function loadSessions(){
     });
     if (list && list.length && !CURRENT) selectSession(list[0].id);
     renderSessList(list||[]);
-  } catch(e){ /* token prompt handles */ }
+  } catch(e){ /* the token gate handles auth errors */ }
 }
 function selectSession(id){
   CURRENT = id;
@@ -253,11 +494,11 @@ function selectSession(id){
   $("chatBox").innerHTML = "";
   esCursor = 0;
   openStream();
+  document.querySelectorAll(".sess").forEach(el => el.classList.toggle("current", el.dataset.id === id));
 }
 $("sessionPicker").addEventListener("change", () => selectSession($("sessionPicker").value));
-function newSession(){ createSession(true); }
 async function createSession(autoSelect){
-  const title = autoSelect ? ("session " + new Date().toISOString().slice(0,19).replace("T"," ")) : $("newSessTitle").value.trim();
+  const title = autoSelect ? shortTitle() : $("newSessTitle").value.trim();
   if (!title) return;
   try {
     const s = await api("/v1/sessions", {method:"POST", body: JSON.stringify({title})});
@@ -273,17 +514,24 @@ async function deleteSession(id){
 function renderSessList(list){
   const el = $("sessList");
   el.innerHTML = "";
-  if (!list || !list.length){ el.innerHTML = "<div class='errline'>no sessions yet</div>"; return; }
+  if (!list || !list.length){ el.innerHTML = "<div class='empty'>No sessions yet.</div>"; return; }
   list.forEach(s => {
     const d = document.createElement("div");
-    d.className = "sess";
-    d.innerHTML = "<span class='title'></span><span class='when'></span>";
-    d.querySelector(".title").textContent = s.title || s.id;
-    d.querySelector(".title").onclick = () => selectSession(s.id);
-    d.querySelector(".when").textContent = s.last_at ? new Date(s.last_at*1000).toLocaleString() : "";
+    d.className = "sess" + (s.id === CURRENT ? " current" : "");
+    d.dataset.id = s.id;
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = s.title || s.id;
+    title.onclick = () => selectSession(s.id);
+    const when = document.createElement("span");
+    when.className = "when";
+    when.textContent = s.last_at ? new Date(s.last_at*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
     const del = document.createElement("button");
-    del.className = "ghost"; del.textContent = "✕"; del.onclick = () => deleteSession(s.id);
-    d.appendChild(del);
+    del.className = "icon";
+    del.innerHTML = ICON.trash;
+    del.setAttribute("aria-label", "Delete session");
+    del.onclick = () => deleteSession(s.id);
+    d.appendChild(title); d.appendChild(when); d.appendChild(del);
     el.appendChild(d);
   });
 }
@@ -295,21 +543,31 @@ function searchMem(){
   api("/v1/memory?q=" + encodeURIComponent(q) + "&limit=25").then(rows => {
     const el = $("memResults");
     el.innerHTML = "";
-    if (!rows || !rows.length){ el.innerHTML = "<div class='errline'>no matches</div>"; return; }
+    if (!rows || !rows.length){ el.innerHTML = "<div class='empty'>No matches for “" + q.replace(/[<>&]/g,"") + "”.</div>"; return; }
     rows.forEach(r => {
       const d = document.createElement("div");
       d.className = "mem";
+      const pct = Math.round((r.score||0)*100);
       const score = document.createElement("div");
       score.className = "score";
-      score.innerHTML = "<div>" + Math.round((r.score||0)*100) + "%</div><div class='bar' style='width:" + Math.round((r.score||0)*100) + "%'></div>";
+      const num = document.createElement("div");
+      num.textContent = pct + "%";
+      const track = document.createElement("div");
+      track.className = "track";
+      const fill = document.createElement("div");
+      fill.className = "fill";
+      fill.style.width = pct + "%";
+      track.appendChild(fill);
+      score.appendChild(num); score.appendChild(track);
       const txt = document.createElement("div");
       txt.className = "txt";
-      const t = document.createElement("div"); t.textContent = r.text || "";
+      const t = document.createElement("div");
+      t.textContent = r.text || "";
       const meta = document.createElement("div");
       meta.className = "meta";
-      meta.textContent = (r.date ? new Date(r.date*1000).toLocaleString() : "") + " · " + (r.id||"");
+      meta.textContent = (r.date ? new Date(r.date*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "") + " · " + (r.id||"");
       txt.appendChild(t); txt.appendChild(meta);
-      d.appendChild(txt); d.appendChild(score);
+      d.appendChild(score); d.appendChild(txt);
       el.appendChild(d);
     });
   }).catch(e => console.error(e));
@@ -317,33 +575,48 @@ function searchMem(){
 $("memQuery").addEventListener("keydown", e => { if (e.key === "Enter") searchMem(); });
 
 /* ---------- dashboard ---------- */
-function loadDashMem(){ /* nothing extra — dashboard pulls status + memory preview */
-  loadDash();
-}
+const DASH_LABELS = {
+  memories:"PICO_MEMORIES", sessions:"PICO_SESSIONS", transcripts:"PICO_TRANSCRIPTS",
+  state:"PICO_STATE", notes:"PICO_DAILY_NOTES", prompts:"PICO_PROMPTS",
+  config:"PICO_CONFIG", meta:"PICO_META", total:"Total"
+};
 function loadDash(){
   api("/v1/status").then(s => {
-    const el = $("dashStats");
-    el.innerHTML = "";
+    const body = $("dashStats");
+    body.innerHTML = "";
     if (!s) return;
-    const order = ["memories","sessions","transcripts","state","notes","prompts","config","meta","total"];
-    const items = [];
-    (order).forEach(k => { if (s[k] !== undefined) items.push([k, s[k]]); });
-    Object.keys(s).forEach(k => { if (!order.includes(k)) items.push([k, s[k]]); });
-    items.forEach(([k,v]) => {
-      const d = document.createElement("div");
-      d.className = "stat";
-      const kd = document.createElement("div"); kd.className = "k"; kd.textContent = k;
-      const vd = document.createElement("div"); vd.className = "v"; vd.textContent = String(v);
-      d.appendChild(kd); d.appendChild(vd);
-      el.appendChild(d);
+    let total = 0;
+    Object.keys(DASH_LABELS).forEach(k => {
+      if (s[k] === undefined || k === "total") return;
+      const n = Number(s[k]);
+      if (k !== "total" && Number.isFinite(n)) total += n;
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td");
+      td1.textContent = DASH_LABELS[k];
+      const td2 = document.createElement("td");
+      td2.className = "num";
+      td2.textContent = k === "meta" && !Number.isFinite(n) ? String(s[k]) : (Number.isFinite(n) ? n.toLocaleString("en-GB") : String(s[k]));
+      tr.appendChild(td1); tr.appendChild(td2);
+      body.appendChild(tr);
     });
+    Object.keys(s).forEach(k => {
+      if (DASH_LABELS[k]) return;
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"); td1.textContent = k;
+      const td2 = document.createElement("td"); td2.className = "num"; td2.textContent = String(s[k]);
+      tr.appendChild(td1); tr.appendChild(td2);
+      body.appendChild(tr);
+    });
+    const lead = s.total !== undefined ? s.total : total;
+    $("dashLeadLabel").textContent = s.total !== undefined ? "Rows in Oracle" : "Rows across tables";
+    $("dashLead").textContent = Number(lead).toLocaleString("en-GB");
   }).catch(() => {});
 }
 
 /* ---------- init ---------- */
 function refreshAll(){ loadSessions(); loadDash(); }
 refreshAll();
-setInterval(loadDash, 30000);
+setInterval(() => { if (!document.hidden) loadDash(); }, 30000);
 </script>
 </body>
 </html>
