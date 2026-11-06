@@ -547,3 +547,44 @@ type fakeStatus struct{}
 func (fakeStatus) Status() map[string]interface{} {
 	return map[string]interface{}{"memories": 3, "schema_version": "1.3.0"}
 }
+
+func TestBrowserGuard_RejectsCrossOriginAndSimpleRequests(t *testing.T) {
+	cfg := config.WebConfig{Enabled: true, Host: "127.0.0.1", Port: 0}
+	msgBus := bus.NewMessageBus()
+	defer msgBus.Close()
+	ch, _ := NewChannel(cfg, msgBus)
+	srv := httptest.NewServer(ch.authMiddleware(ch.muxForTest()))
+	defer srv.Close()
+
+	post := func(ct, origin, host string) int {
+		req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/chat", strings.NewReader(`{"session_id":"s","text":"x"}`))
+		req.Header.Set("Content-Type", ct)
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		if host != "" {
+			req.Host = host
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	if c := post("text/plain", "https://evil.example", ""); c != http.StatusForbidden {
+		t.Errorf("cross-origin text/plain: %d, want 403", c)
+	}
+	if c := post("application/json", "https://evil.example", ""); c != http.StatusForbidden {
+		t.Errorf("cross-origin json: %d, want 403", c)
+	}
+	if c := post("text/plain", "", ""); c != http.StatusUnsupportedMediaType {
+		t.Errorf("text/plain: %d, want 415", c)
+	}
+	if c := post("application/json", "", "evil.example:8090"); c != http.StatusForbidden {
+		t.Errorf("rebinding host: %d, want 403", c)
+	}
+	if c := post("application/json", srv.URL, ""); c != http.StatusAccepted {
+		t.Errorf("same-origin json: %d, want 202", c)
+	}
+}

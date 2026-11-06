@@ -3,8 +3,11 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jasperan/picooraclaw/pkg/bus"
@@ -29,8 +32,41 @@ func (c *Channel) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/status", c.handleStatus)
 }
 
+// browserGuard rejects requests a web page on another origin could issue against a loopback listener:
+// a state-changing request whose Origin differs from the Host it was sent to, a POST that is not
+// application/json (a CORS "simple" request needs no preflight), and, when no token is configured,
+// any request whose Host header is not a loopback name (DNS rebinding).
+func (c *Channel) browserGuard(r *http.Request) (int, string) {
+	if c.cfg.Token == "" {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if !isLoopbackHost(strings.Trim(host, "[]")) {
+			return http.StatusForbidden, "forbidden host"
+		}
+	}
+	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+		return 0, ""
+	}
+	if origin := r.Header.Get("Origin"); origin != "" {
+		u, err := url.Parse(origin)
+		if err != nil || !strings.EqualFold(u.Host, r.Host) {
+			return http.StatusForbidden, "cross-origin request rejected"
+		}
+	}
+	if r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		return http.StatusUnsupportedMediaType, "application/json required"
+	}
+	return 0, ""
+}
+
 func (c *Channel) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if code, msg := c.browserGuard(r); code != 0 {
+			http.Error(w, msg, code)
+			return
+		}
 		if c.cfg.Token != "" {
 			if r.Header.Get("Authorization") != "Bearer "+c.cfg.Token {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
