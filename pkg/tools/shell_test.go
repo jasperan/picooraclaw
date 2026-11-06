@@ -208,3 +208,33 @@ func TestShellTool_RestrictToWorkspace(t *testing.T) {
 		t.Errorf("Expected 'blocked' message for path traversal, got ForLLM: %s, ForUser: %s", result.ForLLM, result.ForUser)
 	}
 }
+
+// TestShellTool_RestrictBlocksCdChain: shell-level directory walks with slash-free paths must be blocked.
+func TestShellTool_RestrictBlocksCdChain(t *testing.T) {
+	tool := NewExecTool(t.TempDir(), true)
+	for _, cmd := range []string{
+		"cd .. && cd .. && cat passwd",
+		"cd ..",
+		"cd; cat config.json",
+		"cd ~ && cat .picooraclaw",
+		"cd $HOME && ls",
+		"ls ..",
+	} {
+		res := tool.Execute(context.Background(), map[string]interface{}{"command": cmd})
+		if !res.IsError || !strings.Contains(res.ForLLM, "blocked") {
+			t.Errorf("command %q should be blocked, got %q", cmd, res.ForLLM)
+		}
+	}
+	res := tool.Execute(context.Background(), map[string]interface{}{"command": "echo a..b && cd sub"})
+	if strings.Contains(res.ForLLM, "blocked") {
+		t.Errorf("benign command blocked: %q", res.ForLLM)
+	}
+}
+
+// TestCronTool_ExecInheritsRestrict: the cron exec tool must honour restrict_to_workspace.
+func TestCronTool_ExecInheritsRestrict(t *testing.T) {
+	ct := NewCronTool(nil, nil, nil, t.TempDir(), 0, true)
+	if !ct.execTool.restrictToWorkspace {
+		t.Fatal("cron exec tool ignored restrict_to_workspace=true")
+	}
+}

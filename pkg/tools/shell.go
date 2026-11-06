@@ -72,6 +72,11 @@ var (
 		regexp.MustCompile(`/etc/shadow`),
 	}
 
+	// A ".." path segment, or a cd that leaves the shell in an unknown directory (no argument, ~, a
+	// variable), lets the shell walk out of the workspace with slash-free relative paths.
+	traversalSegmentPattern = regexp.MustCompile(`(^|[\s;&|()<>"'=/\\])\.\.($|[\s;&|()<>"'/\\])`)
+	unanchoredCdPattern     = regexp.MustCompile(`(^|[;&|(]\s*)(cd|pushd)\s*($|[;&|)]|~|\$|-(\s|$))`)
+
 	absolutePathPattern = regexp.MustCompile(`[A-Za-z]:\\[^\\\"']+|/[^\s\"']+`)
 
 	safePaths = map[string]bool{
@@ -245,7 +250,8 @@ func (t *ExecTool) guardCommand(command, cwd string) string {
 	}
 
 	if t.restrictToWorkspace {
-		if strings.Contains(cmd, "..\\") || strings.Contains(cmd, "../") {
+		if strings.Contains(cmd, "..\\") || strings.Contains(cmd, "../") ||
+			traversalSegmentPattern.MatchString(cmd) || unanchoredCdPattern.MatchString(cmd) {
 			return "Command blocked by safety guard (path traversal detected)"
 		}
 
