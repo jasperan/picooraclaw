@@ -20,6 +20,7 @@ Then configure PicoOraClaw with:
     "model": "meta.llama-3.3-70b-instruct"
 """
 
+import hmac
 import json
 import os
 import sys
@@ -36,6 +37,9 @@ PROXY_HOST = os.getenv("OCI_PROXY_HOST", "127.0.0.1")
 # user visits cannot read model responses from this proxy (or spend their OCI quota through it).
 # A browser client served from another origin can opt in with OCI_PROXY_ALLOW_ORIGIN.
 PROXY_ALLOW_ORIGIN = os.getenv("OCI_PROXY_ALLOW_ORIGIN", "")
+# Optional shared secret. When set, every request must send "Authorization: Bearer <key>"
+# (configure the same value as providers.openai.api_key in PicoOraClaw).
+PROXY_API_KEY = os.getenv("OCI_PROXY_API_KEY", "")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -66,6 +70,19 @@ class OCIProxyHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if "/chat/completions" not in self.path:
             return self._json(404, {"error": {"message": "Not found"}})
+
+        # A web page must not be able to spend the operator's OCI identity: reject browser
+        # cross-origin requests (unless explicitly allowed) and non-JSON bodies, which are the
+        # only kind a page can send without a CORS preflight.
+        origin = self.headers.get("Origin", "")
+        if origin and not (PROXY_ALLOW_ORIGIN and origin == PROXY_ALLOW_ORIGIN):
+            return self._json(403, {"error": {"message": "Cross-origin request rejected"}})
+        if not self.headers.get("Content-Type", "").lower().startswith("application/json"):
+            return self._json(415, {"error": {"message": "application/json required"}})
+        if PROXY_API_KEY and not hmac.compare_digest(
+            self.headers.get("Authorization", ""), f"Bearer {PROXY_API_KEY}"
+        ):
+            return self._json(401, {"error": {"message": "Unauthorized"}})
 
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length))
