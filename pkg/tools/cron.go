@@ -25,8 +25,8 @@ type CronTool struct {
 
 // NewCronTool creates a new CronTool.
 // execTimeout: 0 means no timeout, >0 sets the timeout duration for shell commands.
-func NewCronTool(cronService *cron.CronService, executor JobExecutor, msgBus *bus.MessageBus, workspace string, execTimeout time.Duration) *CronTool {
-	execTool := NewExecTool(workspace, false)
+func NewCronTool(cronService *cron.CronService, executor JobExecutor, msgBus *bus.MessageBus, workspace string, execTimeout time.Duration, restrictToWorkspace bool) *CronTool {
+	execTool := NewExecTool(workspace, restrictToWorkspace)
 	execTool.SetTimeout(execTimeout)
 	return &CronTool{
 		cronService: cronService,

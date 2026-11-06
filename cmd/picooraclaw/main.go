@@ -673,7 +673,7 @@ func gatewayCmd() {
 		})
 
 	// Setup cron tool and service
-	cronService := setupCronTool(agentLoop, msgBus, cfg.WorkspacePath(), cfg.Tools.Cron.ExecTimeoutMinutes)
+	cronService := setupCronTool(agentLoop, msgBus, cfg.WorkspacePath(), cfg.Tools.Cron.ExecTimeoutMinutes, cfg.Agents.Defaults.RestrictToWorkspace)
 
 	// Proactive agent (Spec 06): register built-in morning brief + EOD summary
 	// cron jobs. Idempotent: skip when a job with the same name already exists.
@@ -1182,7 +1182,7 @@ func (o *oracleStores) sessionDB() *sql.DB {
 	return o.session.DB()
 }
 
-func setupCronTool(agentLoop *agent.AgentLoop, msgBus *bus.MessageBus, workspace string, execTimeoutMinutes int) *cron.CronService {
+func setupCronTool(agentLoop *agent.AgentLoop, msgBus *bus.MessageBus, workspace string, execTimeoutMinutes int, restrictToWorkspace bool) *cron.CronService {
 	cronStorePath := filepath.Join(workspace, "cron", "jobs.json")
 
 	// Create cron service
@@ -1192,7 +1192,7 @@ func setupCronTool(agentLoop *agent.AgentLoop, msgBus *bus.MessageBus, workspace
 	execTimeout := time.Duration(execTimeoutMinutes) * time.Minute
 
 	// Create and register CronTool
-	cronTool := tools.NewCronTool(cronService, agentLoop, msgBus, workspace, execTimeout)
+	cronTool := tools.NewCronTool(cronService, agentLoop, msgBus, workspace, execTimeout, restrictToWorkspace)
 	agentLoop.RegisterTool(cronTool)
 
 	// Set the onJob handler
