@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+// Compiled once: these run on every web_search / web_fetch result.
+var (
+	ddgLinkRe    = regexp.MustCompile(`<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>`)
+	ddgSnippetRe = regexp.MustCompile(`<a class="result__snippet[^"]*".*?>([\s\S]*?)</a>`)
+)
+
 const (
 	userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
@@ -118,8 +124,7 @@ func (p *DuckDuckGoSearchProvider) extractResults(html string, count int, query 
 	// Try finding the result links directly first, as they are the most critical
 	// Pattern: <a class="result__a" href="...">Title</a>
 	// The previous regex was a bit strict. Let's make it more flexible for attributes order/content
-	reLink := regexp.MustCompile(`<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>`)
-	matches := reLink.FindAllStringSubmatch(html, count+5)
+	matches := ddgLinkRe.FindAllStringSubmatch(html, count+5)
 
 	if len(matches) == 0 {
 		return fmt.Sprintf("No results found or extraction failed. Query: %s", query), nil
@@ -136,8 +141,7 @@ func (p *DuckDuckGoSearchProvider) extractResults(html string, count int, query 
 
 	// A better regex approach: iterate through text and find matches in order
 	// But for now, let's grab all snippets too
-	reSnippet := regexp.MustCompile(`<a class="result__snippet[^"]*".*?>([\s\S]*?)</a>`)
-	snippetMatches := reSnippet.FindAllStringSubmatch(html, count+5)
+	snippetMatches := ddgSnippetRe.FindAllStringSubmatch(html, count+5)
 
 	maxItems := min(len(matches), count)
 
@@ -172,8 +176,7 @@ func (p *DuckDuckGoSearchProvider) extractResults(html string, count int, query 
 }
 
 func stripTags(content string) string {
-	re := regexp.MustCompile(`<[^>]+>`)
-	return re.ReplaceAllString(content, "")
+	return removeTags(content)
 }
 
 type PerplexitySearchProvider struct {
@@ -484,17 +487,13 @@ func (t *WebFetchTool) Execute(ctx context.Context, args map[string]interface{})
 }
 
 func (t *WebFetchTool) extractText(htmlContent string) string {
-	re := regexp.MustCompile(`<script[\s\S]*?</script>`)
-	result := re.ReplaceAllLiteralString(htmlContent, "")
-	re = regexp.MustCompile(`<style[\s\S]*?</style>`)
-	result = re.ReplaceAllLiteralString(result, "")
-	re = regexp.MustCompile(`<[^>]+>`)
-	result = re.ReplaceAllLiteralString(result, "")
+	result := removeBlocks(htmlContent, "<script", "</script>")
+	result = removeBlocks(result, "<style", "</style>")
+	result = removeTags(result)
 
 	result = strings.TrimSpace(result)
 
-	re = regexp.MustCompile(`\s+`)
-	result = re.ReplaceAllLiteralString(result, " ")
+	result = collapseSpace(result)
 
 	lines := strings.Split(result, "\n")
 	var cleanLines []string
@@ -506,4 +505,76 @@ func (t *WebFetchTool) extractText(htmlContent string) string {
 	}
 
 	return strings.Join(cleanLines, "\n")
+}
+
+// removeBlocks drops every span from open up to and including the nearest
+// following close. Same result as regexp `open[\s\S]*?close`, without the
+// regexp engine cost on large pages.
+func removeBlocks(s, open, close string) string {
+	i := strings.Index(s, open)
+	if i < 0 {
+		return s
+	}
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i >= 0 {
+		j := strings.Index(s[i+len(open):], close)
+		if j < 0 {
+			break
+		}
+		sb.WriteString(s[:i])
+		s = s[i+len(open)+j+len(close):]
+		i = strings.Index(s, open)
+	}
+	sb.WriteString(s)
+	return sb.String()
+}
+
+// removeTags drops every "<...>" span with at least one byte inside.
+// Same result as regexp `<[^>]+>`.
+func removeTags(s string) string {
+	i := strings.IndexByte(s, '<')
+	if i < 0 {
+		return s
+	}
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i >= 0 {
+		j := strings.IndexByte(s[i+1:], '>')
+		if j < 0 {
+			break
+		}
+		if j == 0 { // "<>" is not a tag; keep the '<' and rescan from '>'
+			sb.WriteString(s[:i+1])
+			s = s[i+1:]
+		} else {
+			sb.WriteString(s[:i])
+			s = s[i+1+j+1:]
+		}
+		i = strings.IndexByte(s, '<')
+	}
+	sb.WriteString(s)
+	return sb.String()
+}
+
+// collapseSpace replaces each run of ASCII whitespace (\t \n \f \r space)
+// with a single space. Same result as regexp `\s+` -> " ".
+func collapseSpace(s string) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+	inSpace := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch c {
+		case '\t', '\n', '\f', '\r', ' ':
+			if !inSpace {
+				sb.WriteByte(' ')
+				inSpace = true
+			}
+		default:
+			sb.WriteByte(c)
+			inSpace = false
+		}
+	}
+	return sb.String()
 }
