@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -175,11 +176,11 @@ func (cb *ContextBuilder) LoadBootstrapFiles() string {
 	if cb.promptStore != nil {
 		prompts := cb.promptStore.LoadBootstrapFiles()
 		if len(prompts) > 0 {
-			var result string
-			for name, content := range prompts {
-				result += fmt.Sprintf("## %s\n\n%s\n\n", name, content)
+			var sb strings.Builder
+			for _, name := range bootstrapPromptOrder(prompts) {
+				fmt.Fprintf(&sb, "## %s\n\n%s\n\n", name, prompts[name])
 			}
-			return result
+			return sb.String()
 		}
 	}
 
@@ -200,6 +201,31 @@ func (cb *ContextBuilder) LoadBootstrapFiles() string {
 	}
 
 	return result
+}
+
+// bootstrapPromptOrder returns prompt names in the same order as the
+// workspace-file fallback (AGENT(S), SOUL, USER, IDENTITY), then any others
+// alphabetically. Map iteration order is random, so without this the system
+// prompt changed between turns and defeated provider-side prompt caching.
+func bootstrapPromptOrder(prompts map[string]string) []string {
+	rank := map[string]int{"AGENTS": 0, "AGENT": 1, "SOUL": 2, "USER": 3, "IDENTITY": 4}
+	names := make([]string, 0, len(prompts))
+	for name := range prompts {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		ri, iok := rank[names[i]]
+		rj, jok := rank[names[j]]
+		switch {
+		case iok && jok:
+			return ri < rj
+		case iok != jok:
+			return iok
+		default:
+			return names[i] < names[j]
+		}
+	})
+	return names
 }
 
 func (cb *ContextBuilder) BuildMessages(history []providers.Message, summary string, currentMessage string, media []string, channel, chatID string) []providers.Message {
