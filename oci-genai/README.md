@@ -2,36 +2,30 @@
 
 This module provides **OCI Generative AI** as an optional LLM backend for PicoOraClaw. It runs a local OpenAI-compatible proxy that authenticates with OCI using your `~/.oci/config` credentials and forwards requests to the OCI GenAI inference endpoint.
 
-The default LLM backend remains **Ollama** -- this is an optional alternative for users who want to leverage OCI-hosted models.
+OCI GenAI is the default backend in the shipped config (`http://localhost:9999/v1`, model `xai.grok-4`); Ollama and other OpenAI-compatible APIs are the alternatives.
 
 ## Prerequisites
 
-- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (installs Python and the proxy's dependencies)
 - A configured `~/.oci/config` profile with valid OCI credentials
 - An OCI compartment with access to the Generative AI service
 
 ## Quick Start
 
-1. **Install dependencies:**
-   ```bash
-   cd oci-genai
-   pip install -r requirements.txt
-   ```
-
-2. **Set environment variables:**
+1. **Set environment variables:**
    ```bash
    export OCI_PROFILE=DEFAULT
    export OCI_REGION=us-chicago-1
    export OCI_COMPARTMENT_ID=ocid1.compartment.oc1..your-compartment-ocid
    ```
 
-3. **Start the proxy:**
+2. **Start the proxy** (from the `oci-genai/` directory):
    ```bash
-   python proxy.py
+   uv run --no-project --with-requirements requirements.txt proxy.py
    # Proxy runs at http://localhost:9999/v1
    ```
 
-4. **Configure PicoOraClaw** (`~/.picooraclaw/config.json`):
+3. **Configure PicoOraClaw** (`~/.picooraclaw/config.json`):
    ```json
    {
      "agents": {

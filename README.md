@@ -25,7 +25,7 @@
 
 ---
 
-PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. By default it uses **OCI Generative AI** (xAI Grok 4) for inference, with **Ollama** for local open-weight models and **any OpenAI-compatible API** as alternatives. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings (no external embedding API required).
+PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that adds **Oracle AI Database** as a backend for persistent storage and semantic vector search. By default it uses **OCI Generative AI** (xAI Grok 4) for inference, with **Ollama** for local open-weight models and **any OpenAI-compatible API** as alternatives. The agent remembers facts and recalls them by meaning using in-database ONNX embeddings (no external embedding API required).
 
 <table align="center">
   <tr align="center">
@@ -75,7 +75,7 @@ PicoOraClaw is a fork of [PicoClaw](https://github.com/jasperan/picooraclaw) tha
 >
 > Override install location:
 > ```bash
-> PROJECT_DIR=/opt/myapp curl -fsSL https://raw.githubusercontent.com/jasperan/picooraclaw/main/install.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/jasperan/picooraclaw/main/install.sh | PROJECT_DIR=/opt/myapp bash
 > ```
 >
 > Or install manually:
@@ -141,15 +141,12 @@ PicoOraClaw supports three ways to connect to an LLM. Pick one:
 
 Uses Oracle Cloud's hosted models (xAI Grok 4, Meta Llama, Cohere) via a local proxy. No GPU needed.
 
-**Prerequisites:** Python 3.11+, a configured `~/.oci/config` profile.
+**Prerequisites:** [uv](https://docs.astral.sh/uv/), a configured `~/.oci/config` profile.
 
 ```bash
-# 1. Install the proxy
-cd oci-genai && pip install -r requirements.txt && cd ..
-
-# 2. Start the proxy (reads ~/.oci/config automatically)
+# Start the proxy (uv installs its dependencies on first run; reads ~/.oci/config automatically)
 export OCI_COMPARTMENT_ID=$(awk '/^tenancy=/{sub(/^tenancy=/,"");print;exit}' ~/.oci/config)
-python3 oci-genai/proxy.py &
+uv run --no-project --with-requirements oci-genai/requirements.txt oci-genai/proxy.py &
 ```
 
 The default config already points at `http://localhost:9999/v1` with `xai.grok-4`. No config edits needed.
@@ -743,10 +740,7 @@ Model availability varies by region. Check the [OCI GenAI documentation](https:/
 
 ### Setup
 
-1. **Install the proxy:**
-   ```bash
-   cd oci-genai && pip install -r requirements.txt
-   ```
+1. **Install [uv](https://docs.astral.sh/uv/).** The proxy's dependencies (`oci-genai/requirements.txt`) are installed by `uv run` in step 3.
 
 2. **Configure OCI credentials** (`~/.oci/config`):
    ```ini
@@ -761,7 +755,7 @@ Model availability varies by region. Check the [OCI GenAI documentation](https:/
 3. **Start the proxy** (auto-reads `~/.oci/config`):
    ```bash
    export OCI_COMPARTMENT_ID=$(awk '/^tenancy=/{sub(/^tenancy=/,"");print;exit}' ~/.oci/config)
-   python3 oci-genai/proxy.py
+   uv run --no-project --with-requirements oci-genai/requirements.txt oci-genai/proxy.py
    # Proxy runs at http://localhost:9999/v1
    ```
 
