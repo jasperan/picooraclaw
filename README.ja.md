@@ -3,7 +3,7 @@
 
   <h1>PicoOraClaw: Go + Oracle AI Database による超効率 AI アシスタント</h1>
 
-  <h3>$10 ハードウェア · 10MB RAM · 1秒起動 · Oracle AI ベクトル検索</h3>
+  <h3>$10 ハードウェア · 約 20MB RAM · 1秒起動 · Oracle AI ベクトル検索</h3>
 
   <p>
     <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
@@ -23,7 +23,7 @@ PicoOraClaw は [PicoClaw](https://github.com/sipeed/picoclaw) のフォーク�
     <td align="center" valign="top">
       <p align="center">
         <img src="assets/picoclaw_mem.gif" width="360" height="240">
-        <br><sub>10MB 未満の RAM — $10 ハードウェアでも動作</sub>
+        <br><sub>起動時の RAM 約 20MB — $10 ハードウェアでも動作</sub>
       </p>
     </td>
     <td align="center" valign="top">
@@ -468,7 +468,7 @@ docker compose run --rm picooraclaw-agent -m "こんにちは！"
 
 ## 機能一覧
 
-- 単一静的バイナリ（約 10MB RAM）、RISC-V/ARM64/x86_64 対応
+- 単一静的バイナリ（起動時 約 20MB RAM）、RISC-V/ARM64/x86_64 対応
 - Ollama、OpenRouter、Anthropic、OpenAI、Gemini、DeepSeek、Groq、NVIDIA、vLLM、Moonshot、GitHub Copilot プロバイダー
 - Oracle AI Database + AI ベクトル検索（384次元 ONNX 埋め込み）
 - チャットチャネル: Telegram、WhatsApp、Feishu、Discord、MaixCam、QQ、DingTalk、Slack、LINE、OneBot、Web

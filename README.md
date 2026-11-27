@@ -3,7 +3,7 @@
 
   <h1>PicoOraClaw: Ultra-Efficient AI Assistant in Go + OCI GenAI + Oracle AI Database based on PicoClaw</h1>
 
-  <h3>$10 Hardware · 10MB RAM · 1s Boot · Oracle AI Vector Search · OCI GenAI (default) · Ollama · Any OpenAI-compatible API</h3>
+  <h3>$10 Hardware · ~20MB RAM · 1s Boot · Oracle AI Vector Search · OCI GenAI (default) · Ollama · Any OpenAI-compatible API</h3>
 
   <p>
     <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
@@ -32,7 +32,7 @@ PicoOraClaw is a fork of [PicoClaw](https://github.com/sipeed/picoclaw) that add
     <td align="center" valign="top">
       <p align="center">
         <img src="assets/picoclaw_mem.gif" width="360" height="240">
-        <br><sub>Under 10MB RAM. Runs on $10 hardware.</sub>
+        <br><sub>About 20MB RAM at startup. Runs on $10 hardware.</sub>
       </p>
     </td>
     <td align="center" valign="top">
@@ -988,7 +988,7 @@ docker compose run --rm picooraclaw-agent -m "What is 2+2?"
 
 ## Features
 
-- Single static binary (~10MB RAM), runs on RISC-V/ARM64/x86_64
+- Single static binary (~20MB RAM at startup), runs on RISC-V/ARM64/x86_64
 - Ollama, OpenRouter, Anthropic, OpenAI, Gemini, DeepSeek, Groq, NVIDIA, vLLM, Moonshot, and GitHub Copilot providers
 - Optional [Oracle AI Database 26ai Free](https://www.oracle.com/database/free/) backend with AI Vector Search (384-dim ONNX embeddings)
 - **Hybrid memory recall** — vector + exact-term retrieval fused with reciprocal rank fusion, re-ranked by importance × recency × accessibility decay
