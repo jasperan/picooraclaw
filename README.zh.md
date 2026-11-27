@@ -3,7 +3,7 @@
 
   <h1>PicoOraClaw: 基于 Go + Oracle AI Database 的超高效 AI 助手</h1>
 
-  <h3>$10 硬件 · 10MB 内存 · 1秒启动 · Oracle AI 向量检索</h3>
+  <h3>$10 硬件 · 约 20MB 内存 · 1秒启动 · Oracle AI 向量检索</h3>
 
   <p>
     <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
@@ -25,7 +25,7 @@ PicoOraClaw 是 [PicoClaw](https://github.com/sipeed/picoclaw) 的分支版本�
     <td align="center" valign="top">
       <p align="center">
         <img src="assets/picoclaw_mem.gif" width="360" height="240">
-        <br><sub>内存占用低于 10MB — 可在 $10 硬件上运行</sub>
+        <br><sub>启动时内存占用约 20MB — 可在 $10 硬件上运行</sub>
       </p>
     </td>
     <td align="center" valign="top">
@@ -470,7 +470,7 @@ docker compose run --rm picooraclaw-agent -m "你好！"
 
 ## 功能列表
 
-- 单一静态二进制文件（约 10MB 内存），支持 RISC-V/ARM64/x86_64
+- 单一静态二进制文件（启动时约 20MB 内存），支持 RISC-V/ARM64/x86_64
 - Ollama、OpenRouter、Anthropic、OpenAI、Gemini、DeepSeek、Groq、NVIDIA、vLLM、Moonshot、GitHub Copilot 提供商
 - Oracle AI Database + AI 向量检索（384 维 ONNX 嵌入）
 - 聊天渠道：Telegram、WhatsApp、飞书、Discord、MaixCam、QQ、钉钉、Slack、LINE、OneBot、Web

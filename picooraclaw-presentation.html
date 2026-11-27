@@ -647,7 +647,7 @@ code, .mono { font-family: var(--mono); }
         <div class="label">Packages</div>
       </div>
       <div class="stat-card">
-        <div class="number">~10MB</div>
+        <div class="number">~37MB</div>
         <div class="label">Binary Size</div>
       </div>
       <div class="stat-card">
@@ -1009,7 +1009,7 @@ code, .mono { font-family: var(--mono); }
       <span class="comment"># Cross-compile for RISC-V</span><br>
       <span class="keyword">GOOS</span>=linux <span class="keyword">GOARCH</span>=riscv64 \<br>
       &nbsp;&nbsp;<span class="func">go build</span> -ldflags <span class="string">"-s -w"</span> -o picooraclaw<br><br>
-      <span class="comment"># Result: ~10MB single binary</span><br>
+      <span class="comment"># Result: ~37MB single binary</span><br>
       <span class="comment"># Workspace embedded via go:embed</span><br>
       <span class="comment"># No CGO. No InstantClient. Pure Go.</span>
     </div>
@@ -1082,7 +1082,7 @@ code, .mono { font-family: var(--mono); }
       <li><strong>Workspace embedding</strong> : <code>go:embed</code> bakes default configs into the binary</li>
       <li><strong>Oracle graceful fallback</strong> : Oracle DB when available, local files when not</li>
       <li><strong>Pure Go Oracle driver</strong> : go-ora v2.9.0, no CGO, no InstantClient dependency</li>
-      <li><strong>~10MB footprint</strong> : runs on devices where Python can't even install</li>
+      <li><strong>~20MB RAM footprint</strong> : runs on devices where Python can't even install</li>
     </ul>
   </div>
   <span class="slide-number">23</span>
