@@ -5,7 +5,7 @@
 #
 # Pre-reqs:
 #   1. make build
-#   2. pip install -r oci-genai/requirements.txt
+#   2. uv (https://docs.astral.sh/uv/) for the proxy's Python dependencies
 #   3. ~/.oci/config with valid credentials
 #   4. OCI_COMPARTMENT_ID env var set
 #   5. (optional) OCI_REGION env var (default: us-chicago-1)
@@ -98,8 +98,8 @@ if [ -z "${OCI_REGION:-}" ]; then
     echo -e "${DIM}Using region: ${OCI_REGION}${NC}"
 fi
 
-if ! python3 -c "import oci_openai" 2>/dev/null; then
-    echo "oci-openai not installed. Run: pip install -r oci-genai/requirements.txt"
+if ! command -v uv >/dev/null 2>&1; then
+    echo "uv not installed. See https://docs.astral.sh/uv/getting-started/installation/"
     exit 1
 fi
 
@@ -108,7 +108,7 @@ fi
 kill $(lsof -ti:9999) 2>/dev/null || true
 
 echo -e "${DIM}Starting OCI GenAI proxy...${NC}"
-python3 oci-genai/proxy.py &
+uv run --no-project --with-requirements oci-genai/requirements.txt oci-genai/proxy.py &
 PROXY_PID=$!
 sleep 2
 
